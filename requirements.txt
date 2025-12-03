@@ -1,6 +1,7 @@
-beautifulsoup4==4.14.2
+beautifulsoup4==4.14.3
 bs4==0.0.2
 pandas==2.3.3
 numpy==2.3.5
 yfinance==0.2.66
 lxml==6.0.2
+psycopg2==2.9.11
