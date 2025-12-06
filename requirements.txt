@@ -5,3 +5,4 @@ numpy==2.3.5
 yfinance==0.2.66
 lxml==6.0.2
 psycopg2==2.9.11
+python-dotenv==1.2.1

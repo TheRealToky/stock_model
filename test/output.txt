@@ -1,0 +1,106 @@
+Loading JNJ ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.1152749550" to 33554432 bytes: No space left on device
+CONTEXT:  COPY ohlcv, line 12823
+Loading KO ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.2032178836" to 33554432 bytes: No space left on device
+CONTEXT:  COPY ohlcv, line 3330: "KO,1975-04-24 00:00:00-04:00,0.1884577429730941,0.1893369629621442,0.1846475750207901,0.184647575020..."
+Loading LLY ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.538907550" to 33554432 bytes: No space left on device
+CONTEXT:  COPY ohlcv, line 3540: "LLY,1986-06-05 00:00:00-04:00,3.234207847894897,3.3267693519592285,3.212428670467995,3.3267693519592..."
+Loading MA ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.2136361298" to 33554432 bytes: No space left on device
+CONTEXT:  COPY ohlcv, line 3422: "MA,2019-12-26 00:00:00-05:00,288.23343984111176,289.4517047997685,287.93371266977783,289.28735351562..."
+Loading MC.PA ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.4080983730" to 33554432 bytes: No space left on device
+CONTEXT:  SQL statement "SELECT fk."ticker" FROM ONLY "_timescaledb_internal"."_hyper_1_58235_chunk" fk LEFT OUTER JOIN ONLY "public"."companies" pk ON ( pk."ticker" OPERATOR(pg_catalog.=) fk."ticker") WHERE pk."ticker" IS NULL AND (fk."ticker" IS NOT NULL)"
+SQL statement " ALTER TABLE _timescaledb_internal._hyper_1_58235_chunk ADD CONSTRAINT "58235_116464_ohlcv_ticker_fkey" FOREIGN KEY (ticker) REFERENCES public.companies(ticker) "
+PL/pgSQL function _timescaledb_functions.chunk_constraint_add_table_constraint(_timescaledb_catalog.chunk_constraint) line 49 at EXECUTE
+COPY ohlcv, line 4141: "MC.PA,2016-01-29 00:00:00+01:00,123.84804480029985,125.28518676757812,121.35417890127836,125.2851867..."
+Loading MS ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.130290050" to 33554432 bytes: No space left on device
+CONTEXT:  SQL statement "SELECT fk."ticker" FROM ONLY "_timescaledb_internal"."_hyper_1_59008_chunk" fk LEFT OUTER JOIN ONLY "public"."companies" pk ON ( pk."ticker" OPERATOR(pg_catalog.=) fk."ticker") WHERE pk."ticker" IS NULL AND (fk."ticker" IS NOT NULL)"
+SQL statement " ALTER TABLE _timescaledb_internal._hyper_1_59008_chunk ADD CONSTRAINT "59008_118010_ohlcv_ticker_fkey" FOREIGN KEY (ticker) REFERENCES public.companies(ticker) "
+PL/pgSQL function _timescaledb_functions.chunk_constraint_add_table_constraint(_timescaledb_catalog.chunk_constraint) line 49 at EXECUTE
+COPY ohlcv, line 310: "MS,1994-05-12 00:00:00-04:00,4.282542607363532,4.339077823302325,4.2684088033788345,4.32494401931762..."
+Loading MSFT ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.2395209644" to 33554432 bytes: No space left on device
+CONTEXT:  COPY ohlcv, line 477: "MSFT,1988-01-28 00:00:00-05:00,0.237555154739523,0.2407364835702631,0.237555154739523,0.239676028490..."
+Loading NFLX ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.1351175158" to 33554432 bytes: No space left on device
+CONTEXT:  SQL statement "SELECT fk."ticker" FROM ONLY "_timescaledb_internal"."_hyper_1_59192_chunk" fk LEFT OUTER JOIN ONLY "public"."companies" pk ON ( pk."ticker" OPERATOR(pg_catalog.=) fk."ticker") WHERE pk."ticker" IS NULL AND (fk."ticker" IS NOT NULL)"
+SQL statement " ALTER TABLE _timescaledb_internal._hyper_1_59192_chunk ADD CONSTRAINT "59192_118376_ohlcv_ticker_fkey" FOREIGN KEY (ticker) REFERENCES public.companies(ticker) "
+PL/pgSQL function _timescaledb_functions.chunk_constraint_add_table_constraint(_timescaledb_catalog.chunk_constraint) line 49 at EXECUTE
+COPY ohlcv, line 408: "NFLX,2004-01-02 00:00:00-05:00,0.4107140004634857,0.4127860069274902,0.3842140138149261,0.3916429877..."
+Loading NVDA ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.1637502638" to 33554432 bytes: No space left on device
+CONTEXT:  SQL statement "SELECT fk."ticker" FROM ONLY "_timescaledb_internal"."_hyper_1_59195_chunk" fk LEFT OUTER JOIN ONLY "public"."companies" pk ON ( pk."ticker" OPERATOR(pg_catalog.=) fk."ticker") WHERE pk."ticker" IS NULL AND (fk."ticker" IS NOT NULL)"
+SQL statement " ALTER TABLE _timescaledb_internal._hyper_1_59195_chunk ADD CONSTRAINT "59195_118382_ohlcv_ticker_fkey" FOREIGN KEY (ticker) REFERENCES public.companies(ticker) "
+PL/pgSQL function _timescaledb_functions.chunk_constraint_add_table_constraint(_timescaledb_catalog.chunk_constraint) line 49 at EXECUTE
+COPY ohlcv, line 11: "NVDA,1999-02-04 00:00:00-05:00,0.0353385980399026,0.0377261680134432,0.0348609002824448,0.0367707759..."
+Loading ORCL ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.1960766198" to 33554432 bytes: No space left on device
+CONTEXT:  SQL statement " ALTER TABLE _timescaledb_internal._hyper_1_59256_chunk ADD CONSTRAINT "59256_118503_ohlcv_pkey" PRIMARY KEY (ticker, "timestamp") "
+PL/pgSQL function _timescaledb_functions.chunk_constraint_add_table_constraint(_timescaledb_catalog.chunk_constraint) line 49 at EXECUTE
+COPY ohlcv, line 289: "ORCL,1987-04-30 00:00:00-04:00,0.1212380271564675,0.1212380271564675,0.1150524706940925,0.1162894219..."
+Loading PG ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.1639106002" to 33554432 bytes: No space left on device
+CONTEXT:  COPY ohlcv, line 367: "PG,1963-06-13 00:00:00-04:00,0.2082863022429804,0.2082863022429804,0.2068883228489932,0.207587227225..."
+Loading PLTR ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.11014458" to 33554432 bytes: No space left on device
+CONTEXT:  SQL statement " ALTER TABLE _timescaledb_internal._hyper_1_59358_chunk ADD CONSTRAINT "59358_118705_ohlcv_pkey" PRIMARY KEY (ticker, "timestamp") "
+PL/pgSQL function _timescaledb_functions.chunk_constraint_add_table_constraint(_timescaledb_catalog.chunk_constraint) line 49 at EXECUTE
+COPY ohlcv, line 113: "PLTR,2021-03-11 00:00:00-05:00,25.950000762939453,26.84000015258789,25.57999992370605,26.72999954223..."
+Loading PRX.AS ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.751597132" to 33554432 bytes: No space left on device
+CONTEXT:  SQL statement "SELECT fk."ticker" FROM ONLY "_timescaledb_internal"."_hyper_1_59410_chunk" fk LEFT OUTER JOIN ONLY "public"."companies" pk ON ( pk."ticker" OPERATOR(pg_catalog.=) fk."ticker") WHERE pk."ticker" IS NULL AND (fk."ticker" IS NOT NULL)"
+SQL statement " ALTER TABLE _timescaledb_internal._hyper_1_59410_chunk ADD CONSTRAINT "59410_118810_ohlcv_ticker_fkey" FOREIGN KEY (ticker) REFERENCES public.companies(ticker) "
+PL/pgSQL function _timescaledb_functions.chunk_constraint_add_table_constraint(_timescaledb_catalog.chunk_constraint) line 49 at EXECUTE
+COPY ohlcv, line 248: "PRX.AS,2020-08-28 00:00:00+02:00,39.59916558109112,39.78015031494551,38.75759352831733,39.1467056274..."
+Loading ROG.SW ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.1240492490" to 33554432 bytes: No space left on device
+CONTEXT:  SQL statement " ALTER TABLE _timescaledb_internal._hyper_1_59446_chunk ADD CONSTRAINT "59446_118881_ohlcv_pkey" PRIMARY KEY (ticker, "timestamp") "
+PL/pgSQL function _timescaledb_functions.chunk_constraint_add_table_constraint(_timescaledb_catalog.chunk_constraint) line 49 at EXECUTE
+COPY ohlcv, line 176: "ROG.SW,1995-12-01 00:00:00+01:00,40.704097747802734,40.704097747802734,40.704097747802734,40.7040977..."
+Loading SAP ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.72269974" to 33554432 bytes: No space left on device
+CONTEXT:  SQL statement " ALTER TABLE _timescaledb_internal._hyper_1_59489_chunk ADD CONSTRAINT "59489_118967_ohlcv_pkey" PRIMARY KEY (ticker, "timestamp") "
+PL/pgSQL function _timescaledb_functions.chunk_constraint_add_table_constraint(_timescaledb_catalog.chunk_constraint) line 49 at EXECUTE
+COPY ohlcv, line 204: "SAP,1996-07-05 00:00:00-04:00,9.02369785308838,9.02369785308838,9.02369785308838,9.02369785308838,0,..."
+Loading TCEHY ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.703056284" to 33554432 bytes: No space left on device
+CONTEXT:  SQL statement " ALTER TABLE _timescaledb_internal._hyper_1_59506_chunk ADD CONSTRAINT "59506_119001_ohlcv_pkey" PRIMARY KEY (ticker, "timestamp") "
+PL/pgSQL function _timescaledb_functions.chunk_constraint_add_table_constraint(_timescaledb_catalog.chunk_constraint) line 49 at EXECUTE
+COPY ohlcv, line 76: "TCEHY,2010-04-22 00:00:00-04:00,3.5310028787800585,3.539743185043335,3.5152705775626045,3.5397431850..."
+Loading TSLA ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.2180550096" to 33554432 bytes: No space left on device
+CONTEXT:  SQL statement "SELECT fk."ticker" FROM ONLY "_timescaledb_internal"."_hyper_1_59541_chunk" fk LEFT OUTER JOIN ONLY "public"."companies" pk ON ( pk."ticker" OPERATOR(pg_catalog.=) fk."ticker") WHERE pk."ticker" IS NULL AND (fk."ticker" IS NOT NULL)"
+SQL statement " ALTER TABLE _timescaledb_internal._hyper_1_59541_chunk ADD CONSTRAINT "59541_119072_ohlcv_ticker_fkey" FOREIGN KEY (ticker) REFERENCES public.companies(ticker) "
+PL/pgSQL function _timescaledb_functions.chunk_constraint_add_table_constraint(_timescaledb_catalog.chunk_constraint) line 49 at EXECUTE
+COPY ohlcv, line 164: "TSLA,2011-02-17 00:00:00-05:00,1.6419999599456787,1.6993329524993896,1.5700000524520874,1.5733330249..."
+Loading TSM ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.167003440" to 33554432 bytes: No space left on device
+CONTEXT:  COPY ohlcv, line 22: "TSM,1997-11-06 00:00:00-05:00,2.68464306433487,2.6978675527562905,2.552394619982719,2.57884430885314..."
+Loading UNH ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.3861423014" to 33554432 bytes: No space left on device
+CONTEXT:  COPY ohlcv, line 259: "UNH,1985-10-24 00:00:00-04:00,0.2460770019613378,0.2521533527451677,0.2430391974178075,0.24911557137..."
+Loading V ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.2760079110" to 33554432 bytes: No space left on device
+CONTEXT:  SQL statement " ALTER TABLE _timescaledb_internal._hyper_1_59607_chunk ADD CONSTRAINT "59607_119199_ohlcv_pkey" PRIMARY KEY (ticker, "timestamp") "
+PL/pgSQL function _timescaledb_functions.chunk_constraint_add_table_constraint(_timescaledb_catalog.chunk_constraint) line 49 at EXECUTE
+COPY ohlcv, line 22: "V,2008-04-17 00:00:00-04:00,14.621256663588088,14.950046891357491,14.566090438896731,14.793375015258..."
+Loading WFC ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.3989554614" to 33554432 bytes: No space left on device
+CONTEXT:  SQL statement " ALTER TABLE _timescaledb_internal._hyper_1_59715_chunk ADD CONSTRAINT "59715_119415_ohlcv_pkey" PRIMARY KEY (ticker, "timestamp") "
+PL/pgSQL function _timescaledb_functions.chunk_constraint_add_table_constraint(_timescaledb_catalog.chunk_constraint) line 49 at EXECUTE
+COPY ohlcv, line 518: "WFC,1974-06-20 00:00:00-04:00,0.140503886225778,0.140503886225778,0.1392109841108322,0.1392109841108..."
+Loading WMT ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.1772379202" to 33554432 bytes: No space left on device
+CONTEXT:  SQL statement " ALTER TABLE _timescaledb_internal._hyper_1_59776_chunk ADD CONSTRAINT "59776_119537_ohlcv_pkey" PRIMARY KEY (ticker, "timestamp") "
+PL/pgSQL function _timescaledb_functions.chunk_constraint_add_table_constraint(_timescaledb_catalog.chunk_constraint) line 49 at EXECUTE
+COPY ohlcv, line 289: "WMT,1973-10-18 00:00:00-04:00,0.0080514280125498,0.0081390721551973,0.0080514280125498,0.00805142801..."
+Loading XOM ...
+ERROR:  could not resize shared memory segment "/PostgreSQL.3720125464" to 33554432 bytes: No space left on device
+CONTEXT:  SQL statement "SELECT fk."ticker" FROM ONLY "_timescaledb_internal"."_hyper_1_59865_chunk" fk LEFT OUTER JOIN ONLY "public"."companies" pk ON ( pk."ticker" OPERATOR(pg_catalog.=) fk."ticker") WHERE pk."ticker" IS NULL AND (fk."ticker" IS NOT NULL)"
+SQL statement " ALTER TABLE _timescaledb_internal._hyper_1_59865_chunk ADD CONSTRAINT "59865_119716_ohlcv_ticker_fkey" FOREIGN KEY (ticker) REFERENCES public.companies(ticker) "
+PL/pgSQL function _timescaledb_functions.chunk_constraint_add_table_constraint(_timescaledb_catalog.chunk_constraint) line 49 at EXECUTE
+COPY ohlcv, line 425: "XOM,1963-09-05 00:00:00-04:00,0.1360863577506751,0.1363250911235809,0.135608832716791,0.136325091123..."

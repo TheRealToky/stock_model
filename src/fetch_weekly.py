@@ -3,6 +3,8 @@ import datetime as dt
 import yfinance as yf
 import time
 
+from notebooks.clean_data import top_companies
+
 """
 Fetch weekly new stock numbers
 """
@@ -13,12 +15,15 @@ def fetch_weekly(ticker_symbol):
 
     try:
         tick = yf.Ticker(ticker_symbol)
+        path = f"../data/ohlcv/{ticker_symbol}.csv"
+
         raw_historical_data = tick.history(interval="1d", period="5d", end=today)
         weekly_df = pd.DataFrame(raw_historical_data)
+        weekly_df.to_csv(path, mode="a", header=False)
 
-        weekly_df.to_csv(f"../data/historical_data/{ticker_symbol}.csv", mode="a", header=False)
-        updated_df = pd.read_csv(f"../data/historical_data/{ticker_symbol}.csv")
-        updated_df.drop_duplicates()
+        updated_df = pd.read_csv(path)
+        updated_df.drop_duplicates(subset="Date", keep='last',inplace=True)
+        updated_df.to_csv(path)
         return True  # Success
     except Exception as e:
         print("[!] Failed to fetch weekly data for ticker " + ticker_symbol)
@@ -27,19 +32,26 @@ def fetch_weekly(ticker_symbol):
 
 
 def main():
-    stock_by_market_cap = pd.read_csv("../data/stock_lists/stock_by_market_cap.csv")
+    top_companies = pd.read_csv("../data/stock_lists/top_companies.csv")
 
     failed_list = []
-    for symbol in stock_by_market_cap["Symbol"].head(50):
-        print(f"Updating {symbol}...")
+    delay = 1
 
-        success = fetch_weekly(symbol)
+    for symbol in top_companies["ticker"]:
+        try:
+            print(f"Updating {symbol}...")
 
-        # Add to failed list if fetch was unsuccessful
-        if not success:
+            success = fetch_weekly(symbol)
+
+            # Add to failed list if fetch was unsuccessful
+            if not success:
+                failed_list.append(symbol)
+
+            time.sleep(delay)
+        except Exception as e:
             failed_list.append(symbol)
-
-        time.sleep(5)
+            time.sleep(delay)
+            delay *= 2
 
     print("Failed to fetch:")
     print(f for f in failed_list)
