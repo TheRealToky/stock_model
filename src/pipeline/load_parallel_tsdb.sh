@@ -19,4 +19,4 @@ EOF
 export -f load_csv
 export CONTAINER DB USER
 
-parallel -j 4 load_csv ::: ./data/processed/ohlcv/*.csv
+parallel -j 2 load_csv ::: ./data/processed/ohlcv/*.csv

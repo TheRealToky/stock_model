@@ -1,10 +1,8 @@
-from symtable import Symbol
-
 import pandas as pd
 import psycopg2
 import os
+from pathlib import Path
 from dotenv import load_dotenv
-from psycopg2._psycopg import cursor
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 
@@ -24,9 +22,6 @@ def main():
     DB_HOST = "localhost"
     DB_PORT = 5432
 
-    top_companies = pd.read_csv("../data/stock_lists/top_companies.csv")
-    symbols = top_companies["ticker"].tolist()
-
     conn = psycopg2.connect(
         dbname=DB_NAME,
         user=DB_USER,
@@ -38,12 +33,17 @@ def main():
     conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     cursor = conn.cursor()
 
+    project_root = Path(__file__).parent.parent.parent
+
+    top_companies = pd.read_csv((project_root / "data" / "stock_lists" / "top_companies.csv"))
+    symbols = top_companies["ticker"].tolist()
+
     for symbol in symbols:
         cursor.execute(f"SELECT count(*) FROM ohlcv WHERE ticker='{symbol}'")
         output = cursor.fetchall()
 
         sql_row_count = output[0][0]
-        line_count = count_lines_enumerate(f"../data/processed/ohlcv/{symbol}.csv")
+        line_count = count_lines_enumerate((project_root / "data" / "processed" / "ohlcv" / f"{symbol}.csv"))
 
         if (line_count - 1) != sql_row_count:
             print(f"Symbol {symbol} row does not match")
