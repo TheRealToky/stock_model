@@ -22,7 +22,7 @@ services:
     build:
       context: ./src/pipeline
       dockerfile: Dockerfile
-    image: stock_model-ohlcv_pipeline:latest
+    image: stock_model-pipeline:latest
     container_name: ohlcv_pipeline
     depends_on:
       timescaledb:
@@ -33,6 +33,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       DB_NAME: ${POSTGRES_DB}
     volumes:
+      - ./src/pipeline:/app
       - ./data:/data
 
 volumes:

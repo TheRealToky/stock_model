@@ -18,10 +18,6 @@ DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_HOST = "timescaledb"
 DB_PORT = 5432
 
-print(f"The name is motherfucking: {DB_NAME}")
-print(f"The user is motherfucking: {DB_USER}")
-print(f"The password is motherfucking: {DB_PASSWORD}")
-
 def create_database():
     """
     Creates a new database if it doesn't exist yet.

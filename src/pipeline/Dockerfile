@@ -13,6 +13,4 @@ RUN apk add --no-cache parallel bash postgresql-client \
 COPY . .
 RUN chmod +x run_pipeline.sh
 
-CMD ["./run_pipeline.sh"]
-
-
+CMD ["bash", "run_pipeline.sh"]
