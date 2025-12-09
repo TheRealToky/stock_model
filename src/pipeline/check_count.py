@@ -33,20 +33,24 @@ def main():
     conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     cursor = conn.cursor()
 
-    project_root = Path(__file__).parent.parent.parent
+    # For non-containerized development and testing
+    # project_root = Path(__file__).parent.parent.parent
 
-    top_companies = pd.read_csv((project_root / "data" / "stock_lists" / "top_companies.csv"))
-    symbols = top_companies["ticker"].tolist()
+    # top_companies = pd.read_csv((project_root / "data" / "stock_lists" / "top_companies.csv"))
+    top_companies = pd.read_csv(Path("/data/stock_lists/top_companies.csv"))
+    symbols = top_companies["ticker"].head(2).tolist()
 
     for symbol in symbols:
         cursor.execute(f"SELECT count(*) FROM ohlcv WHERE ticker='{symbol}'")
         output = cursor.fetchall()
 
         sql_row_count = output[0][0]
-        line_count = count_lines_enumerate((project_root / "data" / "processed" / "ohlcv" / f"{symbol}.csv"))
+        # line_count = count_lines_enumerate((project_root / "data" / "processed" / "ohlcv" / f"{symbol}.csv"))
+        line_count = count_lines_enumerate(Path(f"/data/processed/ohlcv/{symbol}.csv"))
 
         if (line_count - 1) != sql_row_count:
             print(f"Symbol {symbol} row does not match")
+
 
 if __name__ == "__main__":
     main()

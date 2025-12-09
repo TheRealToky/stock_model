@@ -1,7 +1,7 @@
 #!/bin/bash
 
-CONTAINER="stock_model_db"
-DB="postgres"
+CONTAINER="test_stock_model_db"
+DB="test_db"
 USER="postgres"
 
 docker exec -i $CONTAINER psql -U $USER -d $DB <<EOF

@@ -6,14 +6,21 @@ import psycopg2
 from dotenv import load_dotenv
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
-
 load_dotenv()
 
-DB_NAME = os.getenv("POSTGRES_DB")
-DB_USER = os.getenv("POSTGRES_USER")
-DB_PASSWORD = os.getenv("POSTGRES_PASSWORD")
-DB_HOST = "localhost"
+# DB_NAME = os.getenv("POSTGRES_DB")
+# DB_USER = os.getenv("POSTGRES_USER")
+# DB_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = "timescaledb"
 DB_PORT = 5432
+
+print(f"The name is motherfucking: {DB_NAME}")
+print(f"The user is motherfucking: {DB_USER}")
+print(f"The password is motherfucking: {DB_PASSWORD}")
 
 def create_database():
     """

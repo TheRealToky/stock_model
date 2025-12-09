@@ -1,7 +1,7 @@
 #!/bin/bash
 
-CONTAINER="stock_model_db"
-DB="postgres"
+CONTAINER="test_stock_model_db"
+DB="test_db"
 USER="postgres"
 
 load_csv() {
@@ -19,4 +19,5 @@ EOF
 export -f load_csv
 export CONTAINER DB USER
 
-parallel -j 2 load_csv ::: ./data/processed/ohlcv/*.csv
+# parallel -j 2 load_csv ::: ../../../data/processed/ohlcv/*.csv
+parallel -j 2 load_csv ::: /data/processed/ohlcv/*.csv

@@ -1,6 +1,6 @@
-.env
+**.env
 .idea
 .venv
-data
+.data
 **/__pycache__/
 **/.ipynb_checkpoints/

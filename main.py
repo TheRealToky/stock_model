@@ -1,7 +1,21 @@
-import yfinance as yf
+import datetime as dt
 import pandas as pd
-import json
+from pathlib import Path
 
-df = pd.read_csv("data/stock_lists/stock_by_market_cap.csv")
+from IPython.core.display_functions import display
 
-print(df.dtypes)
+today = dt.datetime.today()
+
+year = today.year
+month = today.month
+day = today.day
+weekday = today.weekday()
+
+print(f"Year: {year}")
+print(f"Month: {month}")
+print(f"Day: {day}")
+print(f"Weekday: {weekday}")
+
+companies_df = pd.read_csv(Path(f"./data/stock_lists/companies.csv"))
+
+display(companies_df)

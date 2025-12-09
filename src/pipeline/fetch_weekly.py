@@ -1,6 +1,6 @@
 import pandas as pd
-import datetime as dt
 import yfinance as yf
+import datetime as dt
 import time
 from pathlib import Path
 
@@ -8,9 +8,7 @@ from pathlib import Path
 Fetch weekly new stock numbers
 """
 
-
-project_root = Path(__file__).parent.parent.parent
-
+# project_root = Path(__file__).parent.parent.parent
 
 # Fetch weekly function
 def fetch_weekly(ticker_symbol):
@@ -18,7 +16,8 @@ def fetch_weekly(ticker_symbol):
 
     try:
         tick = yf.Ticker(ticker_symbol)
-        path = project_root / "data" / "raw" / "ohlcv" / f"{ticker_symbol}.csv"
+        # path = project_root / "data" / "raw" / "ohlcv" / f"{ticker_symbol}.csv"
+        path = Path(f"/data/raw/ohlcv/{ticker_symbol}.csv")
 
         raw_historical_data = tick.history(interval="1d", period="5d", end=today)
         weekly_df = pd.DataFrame(raw_historical_data)
@@ -35,7 +34,8 @@ def fetch_weekly(ticker_symbol):
 
 
 def main():
-    top_companies = pd.read_csv((project_root / "data" / "stock_lists" / "top_companies.csv"))
+    # top_companies = pd.read_csv((project_root / "data" / "stock_lists" / "top_companies.csv"))
+    top_companies = pd.read_csv(Path("/data/stock_lists/top_companies.csv"))
 
     failed_list = []
     delay = 1
@@ -58,6 +58,7 @@ def main():
 
     print("Failed to fetch:")
     print(f for f in failed_list)
+
 
 if __name__ == "__main__":
     main()
