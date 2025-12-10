@@ -1,0 +1,51 @@
+ticker,company_name,market_cap,country
+NVDA,NVIDIA,4301985153024,United States
+AAPL,Apple,4138242670592,United States
+GOOG,Alphabet (Google),3864435359744,United States
+MSFT,Microsoft,3657192177664,United States
+AMZN,Amazon,2493172154368,United States
+AVGO,Broadcom,1902924136448,United States
+META,Meta Platforms (Facebook),1633175863296,United States
+2222.SR,Saudi Aramco,1587951093023,Saudi Arabia
+TSM,TSMC,1511918010368,Taiwan
+TSLA,Tesla,1430667657216,United States
+BRK-B,Berkshire Hathaway,1108460175360,United States
+LLY,Eli Lilly,964112351232,United States
+WMT,Walmart,881915985920,United States
+JPM,JPMorgan Chase,860892889088,United States
+TCEHY,Tencent,715431411712,China
+V,Visa,649128640512,United States
+ORCL,Oracle,575717572608,United States
+JNJ,Johnson & Johnson,498531336192,United States
+MA,Mastercard,497685659648,United States
+XOM,Exxon Mobil,494195605504,United States
+005930.KS,Samsung,457813597039,South Korea
+NFLX,Netflix,455851245568,United States
+ASML,ASML,411436548096,Netherlands
+COST,Costco,405156233216,United States
+ABBV,AbbVie,402433474560,United States
+PLTR,Palantir,401489821696,United States
+601288.SS,Agricultural Bank of China,397747349508,China
+BAC,Bank of America,397382746112,United States
+BABA,Alibaba,375317233664,China
+1398.HK,ICBC,369619112359,China
+MC.PA,LVMH,366248663008,France
+601939.SS,China Construction Bank,357206796137,China
+HD,Home Depot,355317972992,United States
+AMD,AMD,354147893248,United States
+PG,Procter & Gamble,346766311424,United States
+GE,General Electric,316488155136,United States
+KO,Coca-Cola,314684145664,United States
+ROG.SW,Roche,307053486850,Switzerland
+CVX,Chevron,304500113408,United States
+CSCO,Cisco,303997222912,United States
+UNH,UnitedHealth,298718396416,United States
+IBM,IBM,288440582144,United States
+AZN,AstraZeneca,287482183680,United Kingdom
+SAP,SAP,282072547328,Germany
+601988.SS,Bank of China,276461831775,China
+PRX.AS,Prosus,275139008357,Netherlands
+WFC,Wells Fargo,275015434240,United States
+0857.HK,PetroChina,273770807820,China
+MS,Morgan Stanley,270834335744,United States
+CAT,Caterpillar,269731430400,United States

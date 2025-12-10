@@ -88,26 +88,29 @@ def main():
 
     cursor = conn.cursor()
 
-    Path("/data/ohlcv").mkdir(parents=True, exist_ok=True)
+    Path("/data/processed/ohlcv").mkdir(parents=True, exist_ok=True)
+    Path("/data/raw/ohlcv").mkdir(parents=True, exist_ok=True)
+
+    raw_path = Path("/data/raw/ohlcv")
+    processed_path = Path("/data/processed/ohlcv")
 
     for symbol in top_companies["ticker"]:
         try:
             print(f"Fetching {symbol} data...")
             df_ohlcv = get_ohlcv(symbol)
-            df_ohlcv = df_ohlcv.reset_index()
+            df_ohlcv.to_csv((raw_path / f"{symbol}.csv"), index=False)
 
+            df_ohlcv = df_ohlcv.reset_index()
             df_ohlcv.drop_duplicates(subset="Date", keep='last', inplace=True)
             df_ohlcv.insert(0, "ticker", symbol)
+
+            df_ohlcv.to_csv((processed_path / f"{symbol}.csv"), index=False)
 
             csv_buffer = StringIO()
             df_ohlcv.to_csv(csv_buffer, index=False, header=False)
             csv_buffer.seek(0)
 
             cursor.copy_from(csv_buffer, "ohlcv", sep=",", null="")
-
-            # For tracking and verification
-            df_ohlcv.to_csv((Path(f"/data/ohlcv/{symbol}.csv")), index=False)
-
         except Exception as error:
             print(f"[!] Failed to download {symbol}:")
             print(f"[!] {error}")

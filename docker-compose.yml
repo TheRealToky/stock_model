@@ -2,13 +2,13 @@ services:
   timescaledb:
     image: timescale/timescaledb:2.24.0-pg18
     shm_size: '2gb'
-    container_name: test_stock_model_db
+    container_name: stock_model-db
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
     volumes:
-      - test_stock_data:/var/lib/postgresql
+      - stock_data:/var/lib/postgresql
       - ./data:/data
     ports:
       - "5432:5432"
@@ -37,4 +37,4 @@ services:
       - ./data:/data
 
 volumes:
-  test_stock_data:
+  stock_data:

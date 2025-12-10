@@ -39,8 +39,8 @@ def main():
 
     cursor = conn.cursor()
 
-    Path("/data/ohlcv").mkdir(parents=True, exist_ok=True)
-    path = Path("/data/ohlcv")
+    raw_path = Path("/data/raw/ohlcv")
+    processed_path = Path("/data/processed/ohlcv")
 
     for symbol in top_companies["ticker"]:
         today = dt.datetime.today()  # runs every saturday
@@ -55,6 +55,7 @@ def main():
 
                 raw_ohlcv = tick.history(interval="1d", period="5d", end=today)
                 df_ohlcv = pd.DataFrame(raw_ohlcv)
+                df_ohlcv.to_csv((raw_path / f"{symbol}.csv"), mode="a", index=False, header=False)
                 df_ohlcv = df_ohlcv.reset_index()
 
                 df_ohlcv.drop_duplicates(subset="Date", keep='last', inplace=True)
@@ -62,9 +63,9 @@ def main():
 
                 csv_buffer = StringIO()
                 df_ohlcv.to_csv(csv_buffer, index=False, header=False)
-                df_ohlcv.to_csv(path, mode="a", index=False, header=False)
                 csv_buffer.seek(0)
 
+                df_ohlcv.to_csv((processed_path / f"{symbol}.csv"), mode="a", index=False, header=False)
                 cursor.copy_from(csv_buffer, "ohlcv", sep=",", null="")
             except Exception as e:
                 print(f"[!] Failed to fetch weekly data for ticker {symbol}:")

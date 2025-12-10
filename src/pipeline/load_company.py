@@ -1,9 +1,6 @@
 import os
-import pandas as pd
 import psycopg2
 from dotenv import load_dotenv
-from pathlib import Path
-from io import StringIO
 
 load_dotenv()
 
