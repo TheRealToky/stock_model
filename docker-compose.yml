@@ -36,5 +36,23 @@ services:
       - ./src/pipeline:/app
       - ./data:/data
 
+  weekly_update:
+    build:
+      context: ./src/weekly_update
+      dockerfile: Dockerfile
+    image: stock_model-weekly:latest
+    container_name: ohlcv_weekly
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    environment:
+      DB_HOST: timescaledb
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
+    volumes:
+      - ./src/weekly_update:/app
+      - ./data:/data
+
 volumes:
   stock_data:

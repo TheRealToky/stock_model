@@ -1,21 +1,11 @@
 import datetime as dt
-import pandas as pd
-from pathlib import Path
 
-from IPython.core.display_functions import display
-
+# Get the current date and time
 today = dt.datetime.today()
 
-year = today.year
-month = today.month
-day = today.day
-weekday = today.weekday()
+# Define the time difference (2 days ago)
+two_days_ago = today - dt.timedelta(days=4)
 
-print(f"Year: {year}")
-print(f"Month: {month}")
-print(f"Day: {day}")
-print(f"Weekday: {weekday}")
-
-companies_df = pd.read_csv(Path(f"./data/stock_lists/companies.csv"))
-
-display(companies_df)
+# Print the results
+print("Current date and time:", today)
+print("Date and time two days ago:", two_days_ago)

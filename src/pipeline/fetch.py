@@ -98,7 +98,7 @@ def main():
         try:
             print(f"Fetching {symbol} data...")
             df_ohlcv = get_ohlcv(symbol)
-            df_ohlcv.to_csv((raw_path / f"{symbol}.csv"), index=False)
+            df_ohlcv.to_csv((raw_path / f"{symbol}.csv"))
 
             df_ohlcv = df_ohlcv.reset_index()
             df_ohlcv.drop_duplicates(subset="Date", keep='last', inplace=True)
