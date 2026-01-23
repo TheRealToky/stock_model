@@ -44,9 +44,6 @@ def download_processed_csv(symbol, df_ohlcv):
 
     processed_path = Path("/data/processed/ohlcv")
 
-    # Causes some weird stuff, do not touch
-    # df_ohlcv.drop_duplicates(subset="Date", keep='last', inplace=True)
-
     df_ohlcv = df_ohlcv.reset_index()
     df_ohlcv.insert(0, "ticker", symbol)
 
