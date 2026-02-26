@@ -59,31 +59,31 @@ class OHLCV(Base):
     company = relationship("Company", back_populates="ohlcv")
 
 
-# class CleanOHLCV(Base):
-#     __tablename__ = "clean_ohlcv"
-#
-#     ticker = Column(
-#         Text,
-#         ForeignKey("companies.ticker"),
-#         nullable=False
-#     )
-#
-#     timestamp = Column(
-#         TIMESTAMP(timezone=True),
-#         nullable=False
-#     )
-#
-#     open = Column(DOUBLE_PRECISION)
-#     high = Column(DOUBLE_PRECISION)
-#     low = Column(DOUBLE_PRECISION)
-#     close = Column(DOUBLE_PRECISION)
-#     volume = Column(BigInteger)
-#     dividends = Column(Float)
-#     stock_splits = Column(Float)
-#
-#     __table_args__ = (
-#         PrimaryKeyConstraint("ticker", "timestamp"),
-#     )
-#
-#     # Relationship back to Company
-#     company = relationship("Company", back_populates="clean_ohlcv")
+class CleanOHLCV(Base):
+    __tablename__ = "clean_ohlcv"
+
+    ticker = Column(
+        Text,
+        ForeignKey("companies.ticker"),
+        nullable=False
+    )
+
+    timestamp = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False
+    )
+
+    open = Column(DOUBLE_PRECISION)
+    high = Column(DOUBLE_PRECISION)
+    low = Column(DOUBLE_PRECISION)
+    close = Column(DOUBLE_PRECISION)
+    volume = Column(BigInteger)
+    dividends = Column(Float)
+    stock_splits = Column(Float)
+
+    __table_args__ = (
+        PrimaryKeyConstraint("ticker", "timestamp"),
+    )
+
+    # Relationship back to Company
+    company = relationship("Company", back_populates="clean_ohlcv")
