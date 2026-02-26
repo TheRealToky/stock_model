@@ -1,97 +1,75 @@
 import os
-import psycopg2
-# import pandas as pd
-# import numpy as np
-# from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import URL
+from sqlalchemy import inspect
+from db.base import Base
+from db.session import engine
+import db.models
 
 load_dotenv()
 
-# DB_NAME = os.getenv("POSTGRES_DB")
-# DB_USER = os.getenv("POSTGRES_USER")
-# DB_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+POSTGRES_DB = os.getenv("POSTGRES_DB")
+POSTGRES_USER = os.getenv("POSTGRES_USER")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 
-DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = "timescaledb"
-DB_PORT = 5432
+POSTGRES_HOST = os.getenv("POSTGRES_HOST")
+POSTGRES_PORT = 5432
 
 def create_database():
     """
     Creates a new database if it doesn't exist yet.
     """
-    conn = psycopg2.connect(
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        host=DB_HOST,
-        port=DB_PORT
+    url = URL.create(
+        drivername="postgresql+psycopg2",
+        username=POSTGRES_USER,
+        password=POSTGRES_PASSWORD,
+        host=POSTGRES_HOST,
+        port=POSTGRES_PORT,
+        database=POSTGRES_DB  # connect to default DB first
     )
-    conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-    cursor = conn.cursor()
 
-    cursor.execute(f"SELECT 1 FROM pg_database WHERE datname = '{DB_NAME}';")
-    exists = cursor.fetchone()
+    engine = create_engine(url, isolation_level="AUTOCOMMIT")
 
-    if not exists:
-        cursor.execute(f"CREATE DATABASE {DB_NAME};")
-        print(f"Database '{DB_NAME}' created successfully.")
-    else:
-        print(f"Database '{DB_NAME}' already exists.")
+    with engine.connect() as conn:
+        result = conn.execute(
+            text("SELECT 1 FROM pg_database WHERE datname = :dbname"),
+            {"dbname": POSTGRES_DB}
+        )
+
+        if not result.scalar():
+            conn.execute(text(f'CREATE DATABASE "{POSTGRES_DB}"'))
+            print(f"Database '{POSTGRES_DB}' created.")
+        else:
+            print(f"Database '{POSTGRES_DB}' already exists.")
 
 
 def setup_tables():
     """
     Creates simple tables for stocks and daily OHLCV.
     """
-    conn = psycopg2.connect(
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        host=DB_HOST,
-        port=DB_PORT
-    )
-    cursor = conn.cursor()
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS companies (
-            id SERIAL,
-            ticker TEXT PRIMARY KEY,
-            company_name TEXT,
-            market_cap NUMERIC,
-            country TEXT
-        );
-    """)
+    Base.metadata.create_all(bind=engine)
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS ohlcv (
-            ticker TEXT NOT NULL REFERENCES companies(ticker),
-            timestamp TIMESTAMPTZ NOT NULL,
-            open DOUBLE PRECISION,
-            high DOUBLE PRECISION,
-            low DOUBLE PRECISION,
-            close DOUBLE PRECISION,
-            volume BIGINT,
-            dividends REAL,
-            stock_splits REAL,
-            PRIMARY KEY (ticker, timestamp)
-        );
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    print(f"Tables created: {tables}")
 
-        SELECT create_hypertable(
-            'ohlcv',
-            'timestamp',
-            chunk_time_interval => interval '7 days',
-            partitioning_column => 'ticker',
-            number_partitions => 2000
-        );
-    """)
-
-    conn.commit()
-    cursor.close()
-    conn.close()
+    if "ohlcv" not in tables:
+        raise RuntimeError("Table 'ohlcv' was not created successfully")
     print("Tables created.")
+
+    with engine.connect() as conn:
+        conn.execute(text("""
+            SELECT create_hypertable(
+                'ohlcv',
+                'timestamp',
+                chunk_time_interval => interval '7 days',
+                partitioning_column => 'ticker',
+                number_partitions => 2000
+            );
+        """))
+    print("Hypertable assigned.")
 
 
 def main():

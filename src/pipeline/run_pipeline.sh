@@ -6,7 +6,7 @@ set -e
 python setup_db.py
 
 # Fetches and prepares the ohlcv data
-python clean_list.py
+#python clean_list.py
 
 # Load all CSVs to timescale
 python load_company.py

@@ -1,3 +1,8 @@
+name: stock_model
+
+networks:
+  net:
+
 services:
   timescaledb:
     image: timescale/timescaledb:2.24.0-pg18
@@ -8,15 +13,17 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
     volumes:
-      - stock_data:/var/lib/postgresql
+      - stock_data:/var/lib/postgresql/data
       - ./data:/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 10s
       retries: 5
       timeout: 5s
+    networks:
+      - net
 
   pipeline:
     build:
@@ -28,13 +35,16 @@ services:
       timescaledb:
         condition: service_healthy
     environment:
-      DB_HOST: timescaledb
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_NAME: ${POSTGRES_DB}
+      POSTGRES_HOST: timescaledb
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
     volumes:
       - ./src/pipeline:/app
       - ./data:/data
+      - ./db:/app/db
+    networks:
+      - net
 
   weekly_update:
     build:
@@ -46,13 +56,16 @@ services:
       timescaledb:
         condition: service_healthy
     environment:
-      DB_HOST: timescaledb
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_NAME: ${POSTGRES_DB}
+      POSTGRES_HOST: timescaledb
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
     volumes:
       - ./src/weekly_update:/app
       - ./data:/data
+      - ./db:/app/db
+    networks:
+      - net
 
 volumes:
   stock_data:

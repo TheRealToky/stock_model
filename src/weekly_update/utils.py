@@ -4,9 +4,7 @@ from pathlib import Path
 
 def clean_csv(path):
     df = pd.read_csv(path)
-
     df.drop_duplicates(subset=["Date"], keep="last", inplace=True)
-
     df.to_csv(path, index=False)
 
 

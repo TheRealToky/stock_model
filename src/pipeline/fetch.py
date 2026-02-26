@@ -1,23 +1,9 @@
 import pandas as pd
 import yfinance as yf
-import os
-import psycopg2
-from dotenv import load_dotenv
 from pathlib import Path
 from io import StringIO
+from db.session import engine
 
-
-load_dotenv()
-
-# DB_NAME = os.getenv("POSTGRES_DB")
-# DB_USER = os.getenv("POSTGRES_USER")
-# DB_PASSWORD = os.getenv("POSTGRES_PASSWORD")
-
-DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = "timescaledb"
-DB_PORT = 5432
 
 def get_balancesheet(ticker_symbol):
     tick = yf.Ticker(ticker_symbol)
@@ -73,54 +59,67 @@ def get_all(ticker_symbol):
         print(f"[!] {e}")
 
 
+def download_raw_ticker(symbol):
+    raw_path = Path("/data/raw/ohlcv")
+
+    try:
+        df_ohlcv = get_ohlcv(symbol)
+        df_ohlcv.to_csv((raw_path / f"{symbol}.csv"))
+        print(f"Fetching raw {symbol} data...")
+        return df_ohlcv
+    except Exception as error:
+        print(f"[!] Failed to download raw {symbol}:")
+        print(f"[!] {error}")
+
+
+def process_ticker(symbol, df_ohlcv):
+    processed_path = Path("/data/processed/ohlcv")
+
+    try:
+        print(f"Processing {symbol} data...")
+        df_ohlcv = df_ohlcv.reset_index()
+        df_ohlcv.drop_duplicates(subset="Date", keep='last', inplace=True)
+        df_ohlcv.insert(0, "ticker", symbol)
+
+        df_ohlcv.to_csv((processed_path / f"{symbol}.csv"), index=False)
+
+        return df_ohlcv
+    except Exception as error:
+        print(f"[!] Failed to process {symbol}:")
+        print(f"[!] {error}")
+
+
+def insert_db_ticker(symbol, df_ohlcv, engine):
+    try:
+        print(f"Inserting {symbol} to db...")
+        csv_buffer = StringIO()
+        df_ohlcv.to_csv(csv_buffer, index=False, header=False)
+        csv_buffer.seek(0)
+
+        with engine.raw_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.copy_from(
+                    csv_buffer,
+                    "ohlcv",
+                    sep=",",
+                    null=""
+                )
+            conn.commit()
+    except Exception as error:
+        print(f"[!] Failed to inserting {symbol} to db:")
+        print(f"[!] {error}")
+
+
 def main():
     top_companies = pd.read_csv(Path("/data/stock_lists/top_companies.csv"))
-
-    failed_list = []
-
-    conn = psycopg2.connect(
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        host=DB_HOST,
-        port=DB_PORT
-    )
-
-    cursor = conn.cursor()
 
     Path("/data/processed/ohlcv").mkdir(parents=True, exist_ok=True)
     Path("/data/raw/ohlcv").mkdir(parents=True, exist_ok=True)
 
-    raw_path = Path("/data/raw/ohlcv")
-    processed_path = Path("/data/processed/ohlcv")
-
     for symbol in top_companies["ticker"]:
-        try:
-            print(f"Fetching {symbol} data...")
-            df_ohlcv = get_ohlcv(symbol)
-            df_ohlcv.to_csv((raw_path / f"{symbol}.csv"))
-
-            df_ohlcv = df_ohlcv.reset_index()
-            df_ohlcv.drop_duplicates(subset="Date", keep='last', inplace=True)
-            df_ohlcv.insert(0, "ticker", symbol)
-
-            df_ohlcv.to_csv((processed_path / f"{symbol}.csv"), index=False)
-
-            csv_buffer = StringIO()
-            df_ohlcv.to_csv(csv_buffer, index=False, header=False)
-            csv_buffer.seek(0)
-
-            cursor.copy_from(csv_buffer, "ohlcv", sep=",", null="")
-        except Exception as error:
-            print(f"[!] Failed to download {symbol}:")
-            print(f"[!] {error}")
-            failed_list.append(symbol)
-
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-    print(f for f in failed_list)
+        raw_df_ohlcv = download_raw_ticker(symbol)
+        df_ohlcv = process_ticker(symbol, raw_df_ohlcv)
+        insert_db_ticker(symbol, df_ohlcv, engine)
 
 
 if __name__ == "__main__":
