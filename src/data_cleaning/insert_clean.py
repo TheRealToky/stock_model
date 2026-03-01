@@ -9,7 +9,7 @@ engine = create_engine(os.getenv("DATABASE_URL"))
 
 def main():
     with engine.connect() as conn:
-        df = pd.read_sql("SELECT * FROM ohlcv WHERE ticker = '^GSPC'", con=conn)
+        df = pd.read_sql("SELECT * FROM ohlcv WHERE ticker = 'SPY'", con=conn)
 
     # Add cleaning here, no need for now
 
