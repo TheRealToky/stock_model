@@ -1,8 +1,45 @@
-**.env
-.idea
-.venv
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtual environments
+venv/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Models
+models/saved/*.joblib
+models/saved/*.pkl
+
+# Data
+*.csv
+*.parquet
+*.h5
 .data
 data
-**/__pycache__/
-**/.ipynb_checkpoints/
-pyproject.toml
+
+# Docker
+docker/data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

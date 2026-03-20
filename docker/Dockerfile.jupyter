@@ -1,0 +1,43 @@
+# =============================================================================
+# Quant Lab - Jupyter Notebook Container
+# =============================================================================
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install OS-level build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# ---------------------------------------------------------------------------
+# Dependencies layer
+# ---------------------------------------------------------------------------
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+# ---------------------------------------------------------------------------
+# Application code
+# ---------------------------------------------------------------------------
+COPY . .
+
+ENV PYTHONPATH=/app
+
+# Expose the default JupyterLab port
+EXPOSE 8888
+
+# Launch JupyterLab bound to all interfaces so it is reachable from the host.
+# The token is injected via the JUPYTER_TOKEN env var at runtime (see
+# docker-compose.yml / .env).
+CMD ["jupyter", "lab", \
+     "--ip=0.0.0.0", \
+     "--port=8888", \
+     "--no-browser", \
+     "--allow-root", \
+     "--notebook-dir=/app/research"]
