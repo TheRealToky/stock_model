@@ -1,1 +1,0 @@
-0 4 * * 5 /usr/local/bin/python /app/fetch_weekly.py >> /var/log/stock_model.log 2>&1
