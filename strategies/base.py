@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 class BaseStrategy(ABC):
     """Base class that all trading strategies must inherit from.
 
+    Provides methods that will be overwritten later.
+
     Subclasses are expected to set the ``name`` and ``description`` class
     attributes and to implement the abstract interface defined below.
 
