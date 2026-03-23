@@ -124,6 +124,8 @@ class BacktestEngine:
             raise ValueError("Cannot run backtest on an empty DataFrame.")
         if "close" not in df.columns:
             raise ValueError("DataFrame must contain a 'close' column.")
+        if "open" not in df.columns:
+            raise ValueError("DataFrame must contain an 'open' column.")
 
         # Let the strategy validate its own dependencies.
         strategy.validate_dataframe(df)
@@ -143,7 +145,8 @@ class BacktestEngine:
         # Shift signals by a day to avoid look ahead bias
         signals = signals.shift(1).fillna(0)
 
-        prices = df["close"].values.astype(np.float64)
+        open_prices = df["open"].values.astype(np.float64)
+        close_prices = df["close"].values.astype(np.float64)
 
         # Build date labels.
         if isinstance(df.index, pd.DatetimeIndex):
@@ -154,7 +157,8 @@ class BacktestEngine:
         # Simulate.
         equity_curve, trades = self._simulate_trades(
             signals=signals.values if isinstance(signals, pd.Series) else np.asarray(signals),
-            prices=prices,
+            open_prices=open_prices,
+            close_prices=close_prices,
             dates=dates,
             initial_capital=self.initial_capital,
             commission=self.commission,
@@ -263,7 +267,8 @@ class BacktestEngine:
     @staticmethod
     def _simulate_trades(
         signals: np.ndarray,
-        prices: np.ndarray,
+        open_prices: np.ndarray,
+        close_prices: np.ndarray,
         dates: list[str],
         initial_capital: float,
         commission: float,
@@ -271,7 +276,13 @@ class BacktestEngine:
     ) -> tuple[np.ndarray, list[dict[str, Any]]]:
         """Simulate trades from a signal array.
 
-        The simulation processes signals sequentially:
+        Signals are assumed to already be shifted so that the signal at
+        index *i* represents a decision made *before* bar *i* opens.
+        Trades therefore execute at the **open** price of bar *i*
+        (with slippage), while the equity curve is marked to market at
+        each bar's **close** price.
+
+        Signal convention:
 
         * ``1``  -- open a long position (buy) if flat.
         * ``-1`` -- close the current long position (sell) if held.
@@ -280,15 +291,17 @@ class BacktestEngine:
         Commission and slippage are applied symmetrically on both entry
         and exit:
 
-        * **Entry price** = ``price * (1 + slippage)`` (buy at a worse
+        * **Entry price** = ``open * (1 + slippage)`` (buy at a worse
           price).
-        * **Exit price** = ``price * (1 - slippage)`` (sell at a worse
+        * **Exit price** = ``open * (1 - slippage)`` (sell at a worse
           price).
         * **Commission** = ``cost_basis * commission`` on each leg.
 
         Args:
             signals: 1-D array of trading signals (1, -1, 0).
-            prices: 1-D array of close prices aligned with *signals*.
+            open_prices: 1-D array of open prices aligned with *signals*.
+            close_prices: 1-D array of close prices aligned with
+                *signals* (used only for mark-to-market).
             dates: List of date strings aligned with *signals* / *prices*.
             initial_capital: Starting cash.
             commission: Proportional commission per trade leg.
@@ -299,7 +312,7 @@ class BacktestEngine:
             a numpy array of portfolio values and *trades* is a list of
             trade dictionaries.
         """
-        n = len(prices)
+        n = len(open_prices)
         equity_curve = np.empty(n, dtype=np.float64)
 
         cash: float = initial_capital
@@ -313,11 +326,11 @@ class BacktestEngine:
 
         for i in range(n):
             signal = int(signals[i]) if i < len(signals) else 0
-            price = prices[i]
+            exec_price = open_prices[i]
 
             if signal == 1 and not position_open:
                 # --- OPEN POSITION ---
-                adjusted_price = price * (1.0 + slippage)
+                adjusted_price = exec_price * (1.0 + slippage)
                 max_shares = cash / (adjusted_price * (1.0 + commission))
                 shares = int(max_shares)  # whole shares only
 
@@ -341,7 +354,7 @@ class BacktestEngine:
 
             elif signal == -1 and position_open:
                 # --- CLOSE POSITION ---
-                adjusted_price = price * (1.0 - slippage)
+                adjusted_price = exec_price * (1.0 - slippage)
                 proceeds = shares * adjusted_price
                 commission_cost = proceeds * commission
                 cash += proceeds - commission_cost
@@ -379,8 +392,8 @@ class BacktestEngine:
                 shares = 0.0
                 position_open = False
 
-            # --- MARK TO MARKET ---
-            equity_curve[i] = cash + shares * price
+            # --- MARK TO MARKET at close ---
+            equity_curve[i] = cash + shares * close_prices[i]
 
         # If a position is still open at the end, mark it to market (no trade recorded).
         if position_open:
