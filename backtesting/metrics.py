@@ -98,19 +98,40 @@ def compute_alpha_beta(
     returns: np.ndarray | pd.Series,
     signals: np.ndarray | pd.Series,
 ) -> tuple[float, float]:
-    """Compute the alpha (alpha/beta ratio).
-    Returns:
-    """
-    returns = np.asarray(returns, dtype=np.float64)
+    """Compute alpha and beta of the strategy against the benchmark returns.
 
-    if len(returns) < 2:
+    Beta measures the strategy's sensitivity to benchmark moves.  Alpha is
+    the intercept — the strategy's excess return unexplained by beta.
+
+    Args:
+        returns: Periodic benchmark (e.g. market) simple returns.
+        signals: Trading signals aligned with *returns*.  Shifted by one
+            period internally so that signal on day *t* drives the return
+            on day *t+1*.
+
+    Returns:
+        Tuple of (alpha, beta).  Returns (0.0, 0.0) when fewer than 2
+        valid observations are available.
+    """
+    returns = pd.Series(returns, dtype=np.float64)
+    signals = pd.Series(signals, dtype=np.float64)
+
+    strategy_returns = signals.shift(1) * returns
+
+    mask = strategy_returns.notna() & returns.notna()
+    strategy_returns = strategy_returns[mask]
+    benchmark_returns = returns[mask]
+
+    if len(strategy_returns) < 2:
         logger.warning("Alpha and Beta requires at least 2 return observations; returning 0.0.")
         return 0.0, 0.0
 
-    strategy_returns = signals.shift(1) * returns
-    strategy_returns.dropna()
+    cov_matrix = np.cov(strategy_returns, benchmark_returns)
+    var_benchmark = cov_matrix[1, 1]
+    if var_benchmark == 0.0:
+        return 0.0, 0.0
 
-    beta = np.cov(strategy_returns, returns)
+    beta = cov_matrix[0, 1] / var_benchmark
     alpha = strategy_returns.mean() - beta * returns.mean()
 
     return float(alpha), float(beta)
