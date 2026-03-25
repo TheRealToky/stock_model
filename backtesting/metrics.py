@@ -94,6 +94,28 @@ def compute_sortino_ratio(
     return float(sortino)
 
 
+def compute_alpha_beta(
+    returns: np.ndarray | pd.Series,
+    signals: np.ndarray | pd.Series,
+) -> tuple[float, float]:
+    """Compute the alpha (alpha/beta ratio).
+    Returns:
+    """
+    returns = np.asarray(returns, dtype=np.float64)
+
+    if len(returns) < 2:
+        logger.warning("Alpha and Beta requires at least 2 return observations; returning 0.0.")
+        return 0.0, 0.0
+
+    strategy_returns = signals.shift(1) * returns
+    strategy_returns.dropna()
+
+    beta = np.cov(strategy_returns, returns)
+    alpha = strategy_returns.mean() - beta * returns.mean()
+
+    return float(alpha), float(beta)
+
+
 def compute_max_drawdown(equity_curve: np.ndarray | pd.Series | list) -> float:
     """Compute the maximum drawdown as a positive percentage.
 
