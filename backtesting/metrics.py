@@ -105,20 +105,23 @@ def compute_alpha_beta(
 
     Args:
         returns: Periodic benchmark (e.g. market) simple returns.
-        signals: Trading signals aligned with *returns*.  Shifted by one
-            period internally so that signal on day *t* drives the return
-            on day *t+1*.
+        signals: Trading signals aligned with *returns*. Assumed to be
+        **already shifted** for look-ahead bias (i.e. signal at
+        index *i* applies to the return at index *i*).
 
     Returns:
         Tuple of (alpha, beta).  Returns (0.0, 0.0) when fewer than 2
         valid observations are available.
     """
-    returns = pd.Series(returns, dtype=np.float64)
-    signals = pd.Series(signals, dtype=np.float64)
+    returns = np.asarray(returns, dtype=np.float64)
+    signals = np.asarray(signals, dtype=np.float64)
 
-    strategy_returns = signals.shift(1) * returns
+    # Remove signals' first element to match the returns
+    signals = np.delete(signals, 0)
 
-    mask = strategy_returns.notna() & returns.notna()
+    strategy_returns = signals * returns
+
+    mask = ~np.isnan(strategy_returns) & ~np.isnan(returns)
     strategy_returns = strategy_returns[mask]
     benchmark_returns = returns[mask]
 
@@ -256,6 +259,7 @@ def compute_all_metrics(
     trades: list[dict[str, Any]],
     risk_free_rate: float = 0.04,
     periods: int = 252,
+    signals: np.ndarray | pd.Series | None = None,
 ) -> dict[str, float]:
     """Compute every available performance metric in one call.
 
@@ -264,7 +268,11 @@ def compute_all_metrics(
         trades: List of trade dictionaries (must contain ``"pnl"``).
         risk_free_rate: Annualised risk-free rate.
         periods: Number of periods per year.
-
+        signals: Optional trading signals aligned with the equity curve.
+            When provided together with *returns*, alpha and
+            beta are included in the output.
+        returns: Optional benchmark (e.g. market) simple returns
+            aligned with *signals*.
     Returns:
         Dictionary mapping metric names to their computed values.
     """
@@ -296,6 +304,11 @@ def compute_all_metrics(
         "final_capital": final_value,
         "total_return": (final_value / initial_value - 1.0) if initial_value > 0 else 0.0,
     }
+
+    if signals is not None and returns is not None:
+        alpha, beta = compute_alpha_beta(returns, signals)
+        metrics["alpha"] = alpha
+        metrics["beta"] = beta
 
     logger.info(
         "Metrics computed: Sharpe=%.3f  Sortino=%.3f  MaxDD=%.2f%%  CAGR=%.2f%%  "
