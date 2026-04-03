@@ -170,6 +170,7 @@ class BacktestEngine:
             equity_curve=equity_curve,
             trades=trades,
             risk_free_rate=settings.backtest.risk_free_rate,
+            signals=signals,
         )
 
         result = BacktestResult(

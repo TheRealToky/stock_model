@@ -40,9 +40,9 @@ class BacktestReport:
         m = result.metrics
         lines = [
             "=" * 60,
-            f"  Backtest Report: {result.strategy_name}",
-            f"  Ticker: {result.ticker}",
-            f"  Period: {result.start_date} -> {result.end_date}",
+            f"  Backtest Report:  {result.strategy_name}",
+            f"  Ticker:           {result.ticker}",
+            f"  Period:           {result.start_date} -> {result.end_date}",
             "=" * 60,
             f"  Initial Capital:  ${m.get('initial_capital', 0):>14,.2f}",
             f"  Final Capital:    ${m.get('final_capital', 0):>14,.2f}",
@@ -53,6 +53,9 @@ class BacktestReport:
             f"  Calmar Ratio:     {m.get('calmar_ratio', 0):>14.3f}",
             f"  Max Drawdown:     {m.get('max_drawdown', 0):>14.2%}",
             f"  CAGR:             {m.get('cagr', 0):>14.2%}",
+            "-" * 60,
+            f"  Alpha:            {m.get('alpha', 0):>14.3f}",
+            f"  Beta:             {m.get('beta', 0):>14.3f}",
             "-" * 60,
             f"  Total Trades:     {m.get('total_trades', 0):>14d}",
             f"  Win Rate:         {m.get('win_rate', 0):>14.2%}",
