@@ -82,7 +82,7 @@ class DataFetcher:
                     td = TDClient(apikey="YOUR_API_KEY_HERE")
 
                     start = datetime.fromisoformat(start_date)
-                    end = datetime.fromisoformat(end_date)
+                    end = datetime.fromisoformat(end_date) or datetime.now()
                     current = start
 
                     all_dfs = []
@@ -97,11 +97,14 @@ class DataFetcher:
                         )
                         temp_df = ts.as_pandas()
 
-                        temp_df = temp_df.rename(columns={'datetime': 'timestamp'})
+                        if temp_df.empty:
+                            logger.warning(
+                                "API returned empty dataframe for ticker %s [%s -> %s]  interval=%s",
+                                ticker, start_date, end_date, interval,
+                            )
 
-                        temp_df["timestamp"] = pd.to_datetime(temp_df["timestamp"], utc=True)
+                        temp_df.index.name = 'timestamp'
                         temp_df = temp_df.sort_values("timestamp")
-                        temp_df = temp_df.set_index("timestamp")
 
                         # remove duplicates
                         temp_df = temp_df[~temp_df.index.duplicated(keep="last")]
@@ -148,6 +151,7 @@ class DataFetcher:
     def fetch_batch(
         self,
         tickers: list[str],
+        data_source: str,
         start_date: str | None = None,
         end_date: str | None = None,
         interval: str = "1d",
@@ -160,7 +164,7 @@ class DataFetcher:
         results: dict[str, pd.DataFrame] = {}
         for ticker in tickers:
             try:
-                df = self.fetch_ohlcv(ticker, start_date, end_date, interval)
+                df = self.fetch_ohlcv(ticker, data_source, start_date, end_date, interval)
                 if not df.empty:
                     results[ticker] = df
             except RuntimeError:
@@ -299,6 +303,7 @@ class DataFetcher:
     def run_full_ingestion(
         self,
         tickers: list[str] | None = None,
+        data_source: str = 'yahoo',
         start_date: str | None = None,
         end_date: str | None = None,
         interval: str = "1d",
@@ -326,7 +331,7 @@ class DataFetcher:
         for ticker in tickers:
             try:
                 instrument_id = self.upsert_instrument(ticker)
-                df = self.fetch_ohlcv(ticker, start_date, end_date, interval)
+                df = self.fetch_ohlcv(ticker, data_source, start_date, end_date, interval)
                 if df.empty:
                     results[ticker] = 0
                     continue
@@ -343,6 +348,7 @@ class DataFetcher:
     def run_incremental_update(
         self,
         tickers: list[str] | None = None,
+        data_source: str = 'yahoo',
         interval: str = "1d",
     ) -> dict[str, int]:
         """Fetch only new data since the last stored timestamp for each ticker.
@@ -372,7 +378,7 @@ class DataFetcher:
                 else:
                     start_date = settings.pipeline.default_start_date
 
-                df = self.fetch_ohlcv(ticker, start_date=start_date, interval=interval)
+                df = self.fetch_ohlcv(ticker, data_source=data_source, start_date=start_date, interval=interval)
                 if df.empty:
                     logger.info("No new data for %s", ticker)
                     results[ticker] = 0
