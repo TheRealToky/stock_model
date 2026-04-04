@@ -18,6 +18,7 @@ import os
 load_dotenv()
 
 av_key = os.getenv("AV_API_KEY", "default_value")
+td_key = os.getenv("TD_API_KEY", "default_value")
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ class DataFetcher:
                         auto_adjust=False,
                     )
                 elif data_source == "twelvedata":
-                    td = TDClient(apikey="YOUR_API_KEY_HERE")
+                    td = TDClient(apikey=td_key)
 
                     start = datetime.fromisoformat(start_date)
                     end = datetime.fromisoformat(end_date) or datetime.now()
@@ -119,7 +120,7 @@ class DataFetcher:
                         current = temp_df.index.max()
 
                         time.sleep(2)
-                    df = pd.concat(all_dfs)
+                    df = pd.concat(all_dfs) if all_dfs else None
                 else:
                     df = pd.DataFrame()
                     raise ValueError("No available data source corresponding to {}".format(data_source))
