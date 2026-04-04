@@ -26,8 +26,9 @@ class DatabaseConfig:
 class DataPipelineConfig:
     default_start_date: str = "2010-01-01"
     default_interval: str = "1d"
+    default_data_source: str = "yahoo"
     batch_size: int = 50
-    max_retries: int = 3
+    max_retries: int = 7
     retry_delay_seconds: int = 5
     default_tickers: list[str] = field(default_factory=lambda: [
         "AAPL", "MSFT", "GOOGL", "AMZN", "META",
