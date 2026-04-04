@@ -33,8 +33,10 @@ def cmd_ingest(args: argparse.Namespace) -> None:
 
     fetcher = DataFetcher()
     tickers = args.tickers or settings.pipeline.default_tickers
+    data_source = args.source or settings.pipeline.default_tickers
     fetcher.run_full_ingestion(
         tickers=tickers,
+        data_source=data_source,
         start_date=args.start,
         interval=args.interval,
     )
@@ -46,8 +48,10 @@ def cmd_update(args: argparse.Namespace) -> None:
 
     fetcher = DataFetcher()
     tickers = args.tickers or settings.pipeline.default_tickers
+    data_source = args.source or settings.pipeline.default_tickers
     fetcher.run_incremental_update(
         tickers=tickers,
+        data_source=data_source,
         interval=args.interval,
     )
 
@@ -105,12 +109,17 @@ def main() -> None:
         "--interval", default=settings.pipeline.default_interval,
         help="Data interval: 1d, 1h, 5m, etc.",
     )
+    p_ingest.add_argument(
+        "--source", default=settings.pipeline.default_data_source,
+        help="Base API to fetch data: 'yahoo', 'twelvedata', 'alpha_vantage', etc.",
+    )
     p_ingest.set_defaults(func=cmd_ingest)
 
     # -- update ---------------------------------------------------------
     p_update = sub.add_parser("update", help="Incremental data update.")
     p_update.add_argument("--tickers", nargs="+", default=None)
     p_update.add_argument("--interval", default=settings.pipeline.default_interval)
+    p_update.add_argument("--source", default=settings.pipeline.default_data_source)
     p_update.set_defaults(func=cmd_update)
 
     # -- status ---------------------------------------------------------

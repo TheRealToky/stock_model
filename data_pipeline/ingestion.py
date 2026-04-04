@@ -6,7 +6,6 @@ from datetime import datetime, date, timedelta, timezone
 
 import pandas as pd
 import yfinance as yf
-import requests
 from sqlalchemy import text
 from twelvedata import TDClient
 
@@ -356,6 +355,7 @@ class DataFetcher:
 
         Args:
             tickers: List of ticker symbols. Defaults to pipeline config.
+            data_source: Base API to fetch the data. Defaults to yahoo.
             interval: Bar interval.
 
         Returns:
