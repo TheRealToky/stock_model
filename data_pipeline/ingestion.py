@@ -2,14 +2,22 @@
 
 import logging
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, date, timedelta, timezone
 
 import pandas as pd
 import yfinance as yf
+import requests
 from sqlalchemy import text
+from twelvedata import TDClient
 
 from config.settings import settings
 from database.connection import get_engine, get_session
+
+from dotenv import load_dotenv
+import os
+load_dotenv()
+
+av_key = os.getenv("AV_API_KEY", "default_value")
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +41,7 @@ class DataFetcher:
     def fetch_ohlcv(
         self,
         ticker: str,
+        data_source: str,
         start_date: str | None = None,
         end_date: str | None = None,
         interval: str = "1d",
@@ -41,9 +50,10 @@ class DataFetcher:
 
         Args:
             ticker: Stock/ETF ticker symbol.
+            data_source: Selects which provider to fetch data from.
             start_date: ISO date string (YYYY-MM-DD). Defaults to pipeline config.
             end_date: ISO date string. Defaults to today.
-            interval: yfinance interval string (1d, 1h, etc.).
+            interval: Interval string (1d, 1h, etc.).
 
         Returns:
             DataFrame with columns [open, high, low, close, volume, adjusted_close]
@@ -60,13 +70,57 @@ class DataFetcher:
         last_error: Exception | None = None
         for attempt in range(1, self.max_retries + 1):
             try:
-                tk = yf.Ticker(ticker)
-                df = tk.history(
-                    start=start_date,
-                    end=end_date,
-                    interval=interval,
-                    auto_adjust=False,
-                )
+                if data_source == "yahoo":
+                    tk = yf.Ticker(ticker)
+                    df = tk.history(
+                        start=start_date,
+                        end=end_date,
+                        interval=interval,
+                        auto_adjust=False,
+                    )
+                elif data_source == "twelvedata":
+                    td = TDClient(apikey="YOUR_API_KEY_HERE")
+
+                    start = datetime.fromisoformat(start_date)
+                    end = datetime.fromisoformat(end_date)
+                    current = start
+
+                    all_dfs = []
+
+                    while current < end:
+                        ts = td.time_series(
+                            symbol=ticker,
+                            interval=interval,
+                            start_date=current.isoformat(),
+                            outputsize=5000,
+                            timezone="utc",
+                        )
+                        temp_df = ts.as_pandas()
+
+                        temp_df = temp_df.rename(columns={'datetime': 'timestamp'})
+
+                        temp_df["timestamp"] = pd.to_datetime(temp_df["timestamp"], utc=True)
+                        temp_df = temp_df.sort_values("timestamp")
+                        temp_df = temp_df.set_index("timestamp")
+
+                        # remove duplicates
+                        temp_df = temp_df[~temp_df.index.duplicated(keep="last")]
+
+                        # ensure numeric OHLCV
+                        cols = ["open", "high", "low", "close", "volume"]
+                        temp_df[cols] = temp_df[cols].apply(pd.to_numeric, errors="coerce")
+
+                        temp_df = temp_df.dropna()
+
+                        all_dfs.append(temp_df)
+                        current = temp_df.index.max()
+
+                        time.sleep(2)
+                    df = pd.concat(all_dfs)
+                else:
+                    df = pd.DataFrame()
+                    raise ValueError("No available data source corresponding to {}".format(data_source))
+
                 if df.empty:
                     logger.warning("No data returned for %s", ticker)
                     return pd.DataFrame()
@@ -84,7 +138,7 @@ class DataFetcher:
                     attempt, self.max_retries, ticker, exc,
                 )
                 if attempt < self.max_retries:
-                    time.sleep(self.retry_delay)
+                    time.sleep(2 ** attempt)
 
         logger.error("All %d attempts failed for %s", self.max_retries, ticker)
         raise RuntimeError(
