@@ -82,7 +82,7 @@ class DataFetcher:
                     td = TDClient(apikey=td_key)
 
                     start = datetime.fromisoformat(start_date)
-                    end = datetime.fromisoformat(end_date) or datetime.now()
+                    end = datetime.fromisoformat(end_date) if end_date else datetime.now(tz=timezone.utc)
                     current = start
 
                     all_dfs = []
@@ -102,6 +102,7 @@ class DataFetcher:
                                 "API returned empty dataframe for ticker %s [%s -> %s]  interval=%s",
                                 ticker, start_date, end_date, interval,
                             )
+                            break
 
                         temp_df.index.name = 'timestamp'
                         temp_df = temp_df.sort_values("timestamp")
@@ -116,10 +117,14 @@ class DataFetcher:
                         temp_df = temp_df.dropna()
 
                         all_dfs.append(temp_df)
-                        current = temp_df.index.max()
+                        current = temp_df.index.max() + timedelta(minutes=1)
+
+                        # The loop has reached the latest available datetime
+                        if len(temp_df) < 5000:
+                            break
 
                         time.sleep(2)
-                    df = pd.concat(all_dfs) if all_dfs else None
+                    df = pd.concat(all_dfs) if all_dfs else pd.DataFrame()
                 else:
                     df = pd.DataFrame()
                     raise ValueError("No available data source corresponding to {}".format(data_source))
