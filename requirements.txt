@@ -22,6 +22,7 @@ backtrader>=1.9
 
 # --- Market data ---
 yfinance>=0.2.36
+twelvedata[pandas]>=1.2
 
 # --- Database ---
 sqlalchemy>=2.0
