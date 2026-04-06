@@ -34,6 +34,7 @@ class DataFetcher:
         self.max_retries = max_retries or settings.pipeline.max_retries
         self.retry_delay = retry_delay or settings.pipeline.retry_delay_seconds
         self.engine = get_engine()
+        self._rate_limit_windows: dict[str, deque] = {}
 
     # ------------------------------------------------------------------
     # yfinance helpers
@@ -389,11 +390,8 @@ class DataFetcher:
         current = end if end else None
         all_dfs = []
 
-        max_per_minute = 8
-        request_times = deque(maxlen=max_per_minute)
-
         if end is None:
-            self._rate_limit(max_per_minute, request_times)
+            self._rate_limit("twelvedata", max_per_minute=8)
             # Send the first request on the latest available date
             ts = td.time_series(
                 symbol=ticker,
@@ -409,7 +407,7 @@ class DataFetcher:
             current = temp_df.index.min() - timedelta(minutes=1)
 
         while current > start:
-            self._rate_limit(max_per_minute, request_times)
+            self._rate_limit("twelvedata", max_per_minute=8)
             ts = td.time_series(
                 symbol=ticker,
                 interval=interval,
@@ -457,17 +455,18 @@ class DataFetcher:
 
         return df
 
-    @staticmethod
     def _rate_limit(
+        self,
+        key: str,
         max_per_minute: int,
-        request_times: deque,
     ) -> None:
+        if key not in self._rate_limit_windows:
+            self._rate_limit_windows[key] = deque(maxlen=max_per_minute)
+        request_times = self._rate_limit_windows[key]
         now = time.monotonic()
         if len(request_times) == max_per_minute and (now - request_times[0]) < 60:
             wait = 60 - (now - request_times[0])
-            logger.debug("Rate limit: sleeping %.1fs", wait)
-            time.sleep(wait)
-        request_times.append(time.monotonic())
+            logger.debug("Rate limit [%s]: sleeping %.1fs", key, wait)
 
     @staticmethod
     def _normalize_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
