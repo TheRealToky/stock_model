@@ -33,7 +33,7 @@ def cmd_ingest(args: argparse.Namespace) -> None:
 
     fetcher = DataFetcher()
     tickers = args.tickers or settings.pipeline.default_tickers
-    data_source = args.source or settings.pipeline.default_tickers
+    data_source = args.source or settings.pipeline.default_data_source
     fetcher.run_full_ingestion(
         tickers=tickers,
         data_source=data_source,
@@ -48,7 +48,7 @@ def cmd_update(args: argparse.Namespace) -> None:
 
     fetcher = DataFetcher()
     tickers = args.tickers or settings.pipeline.default_tickers
-    data_source = args.source or settings.pipeline.default_tickers
+    data_source = args.source or settings.pipeline.default_data_source
     fetcher.run_incremental_update(
         tickers=tickers,
         data_source=data_source,
