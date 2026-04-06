@@ -5,7 +5,7 @@ database status inspection.
 
 Usage::
 
-    python -m data_pipeline.runner ingest --tickers AAPL MSFT --start 2020-01-01
+    python -m data_pipeline.runner ingest --tickers AAPL MSFT --source twelvedata --start 2020-01-01
     python -m data_pipeline.runner update --tickers AAPL MSFT
     python -m data_pipeline.runner status
 """

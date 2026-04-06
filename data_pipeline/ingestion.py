@@ -60,7 +60,7 @@ class DataFetcher:
             indexed by a tz-aware UTC DatetimeIndex named ``timestamp``.
         """
         start_date = start_date or settings.pipeline.default_start_date
-        end_date = end_date or datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+        end_date = end_date
 
         logger.info(
             "Fetching %s OHLCV  [%s -> %s]  interval=%s",
@@ -80,51 +80,13 @@ class DataFetcher:
                     )
                 elif data_source == "twelvedata":
                     td = TDClient(apikey=td_key)
-
-                    start = datetime.fromisoformat(start_date)
-                    end = datetime.fromisoformat(end_date) if end_date else datetime.now(tz=timezone.utc)
-                    current = start
-
-                    all_dfs = []
-
-                    while current < end:
-                        ts = td.time_series(
-                            symbol=ticker,
-                            interval=interval,
-                            start_date=current.isoformat(),
-                            outputsize=5000,
-                            timezone="utc",
-                        )
-                        temp_df = ts.as_pandas()
-
-                        if temp_df.empty:
-                            logger.warning(
-                                "API returned empty dataframe for ticker %s [%s -> %s]  interval=%s",
-                                ticker, start_date, end_date, interval,
-                            )
-                            break
-
-                        temp_df.index.name = 'timestamp'
-                        temp_df = temp_df.sort_values("timestamp")
-
-                        # remove duplicates
-                        temp_df = temp_df[~temp_df.index.duplicated(keep="last")]
-
-                        # ensure numeric OHLCV
-                        cols = ["open", "high", "low", "close", "volume"]
-                        temp_df[cols] = temp_df[cols].apply(pd.to_numeric, errors="coerce")
-
-                        temp_df = temp_df.dropna()
-
-                        all_dfs.append(temp_df)
-                        current = temp_df.index.max() + timedelta(minutes=1)
-
-                        # The loop has reached the latest available datetime
-                        if len(temp_df) < 5000:
-                            break
-
-                        time.sleep(2)
-                    df = pd.concat(all_dfs) if all_dfs else pd.DataFrame()
+                    df = self._fetch_twelve_data(
+                        ticker=ticker,
+                        td=td,
+                        start_date=start_date,
+                        end_date=end_date,
+                        interval=interval,
+                    )
                 else:
                     df = pd.DataFrame()
                     raise ValueError("No available data source corresponding to {}".format(data_source))
@@ -317,6 +279,7 @@ class DataFetcher:
 
         Args:
             tickers: List of ticker symbols. Defaults to pipeline config.
+            data_source: Selects which provider to fetch data from.
             start_date: ISO date string. Defaults to pipeline config.
             end_date: ISO date string. Defaults to today.
             interval: Bar interval.
@@ -379,8 +342,15 @@ class DataFetcher:
                 last_ts = self._get_last_timestamp(instrument_id, interval)
 
                 if last_ts is not None:
-                    # Start one day after last stored bar to avoid duplication.
-                    start_date = (last_ts + timedelta(days=1)).strftime("%Y-%m-%d")
+                    if interval == "1d":
+                        # Start one day after last stored bar to avoid duplication.
+                        start_date = (last_ts + timedelta(days=1)).strftime("%Y-%m-%d")
+                    elif interval == "1min":
+                        # Start one minute after last stored bar to avoid duplication.
+                        start_date = (last_ts + timedelta(minutes=1)).strftime("%Y-%m-%d")
+                    else:
+                        # Start one day after last stored bar to avoid duplication.
+                        start_date = (last_ts + timedelta(days=1)).strftime("%Y-%m-%d")
                 else:
                     start_date = settings.pipeline.default_start_date
 
@@ -404,6 +374,80 @@ class DataFetcher:
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _fetch_twelve_data(
+            ticker: str,
+            td: TDClient,
+            start_date: str | None = None,
+            end_date: str | None = None,
+            interval: str = "1min",
+    ):
+        start = datetime.fromisoformat(start_date)
+        end = datetime.fromisoformat(end_date) if end_date else None
+        current = end if end else None
+        all_dfs = []
+
+        if end is None:
+            # Send the first request on the latest available date
+            ts = td.time_series(
+                symbol=ticker,
+                interval=interval,
+                outputsize=5000,
+                timezone="utc",
+            )
+            temp_df = ts.as_pandas()
+            temp_df.index.name = 'timestamp'
+
+            all_dfs.append(temp_df)
+
+            current = temp_df.index.min() - timedelta(minutes=1)
+
+        while current > start:
+            ts = td.time_series(
+                symbol=ticker,
+                interval=interval,
+                end_date=current.isoformat(),
+                outputsize=5000,
+                timezone="utc",
+            )
+            temp_df = ts.as_pandas()
+
+            if temp_df.empty:
+                logger.warning(
+                    "API returned empty dataframe for ticker %s [%s -> %s]  interval=%s",
+                    ticker, start_date, end_date, interval,
+                )
+                break
+
+            temp_df.index.name = 'timestamp'
+
+            all_dfs.append(temp_df)
+            current = temp_df.index.min() - timedelta(minutes=1)
+
+            # The loop has reached the earliest available datetime
+            if len(temp_df) < 5000:
+                break
+
+            time.sleep(2)
+
+        df = pd.concat(all_dfs) if all_dfs else pd.DataFrame()
+
+        # ensure numeric OHLCV
+        cols = ["open", "high", "low", "close", "volume"]
+        df[cols] = df[cols].apply(pd.to_numeric, errors="coerce")
+
+        # normalize index
+        df.index = pd.to_datetime(df.index, utc=True, errors="coerce")
+        df = df[df.index.notna()]
+
+        # dedup & sort on the index
+        df = df[~df.index.duplicated(keep="last")]
+        df = df.sort_index()
+
+        df = df[(df['close'] >= 0) & (df['volume'] >= 0)]
+
+        return df
 
     @staticmethod
     def _normalize_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
