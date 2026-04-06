@@ -467,6 +467,8 @@ class DataFetcher:
         if len(request_times) == max_per_minute and (now - request_times[0]) < 60:
             wait = 60 - (now - request_times[0])
             logger.debug("Rate limit [%s]: sleeping %.1fs", key, wait)
+            time.sleep(wait)
+        request_times.append(time.monotonic())
 
     @staticmethod
     def _normalize_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
