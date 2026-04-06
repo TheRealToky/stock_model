@@ -8,6 +8,7 @@ import pandas as pd
 import yfinance as yf
 from sqlalchemy import text
 from twelvedata import TDClient
+from collections import deque
 
 from config.settings import settings
 from database.connection import get_engine, get_session
@@ -375,20 +376,24 @@ class DataFetcher:
     # Private helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
     def _fetch_twelve_data(
-            ticker: str,
-            td: TDClient,
-            start_date: str | None = None,
-            end_date: str | None = None,
-            interval: str = "1min",
+        self,
+        ticker: str,
+        td: TDClient,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        interval: str = "1min",
     ):
         start = datetime.fromisoformat(start_date)
         end = datetime.fromisoformat(end_date) if end_date else None
         current = end if end else None
         all_dfs = []
 
+        max_per_minute = 8
+        request_times = deque(maxlen=max_per_minute)
+
         if end is None:
+            self._rate_limit(max_per_minute, request_times)
             # Send the first request on the latest available date
             ts = td.time_series(
                 symbol=ticker,
@@ -404,6 +409,7 @@ class DataFetcher:
             current = temp_df.index.min() - timedelta(minutes=1)
 
         while current > start:
+            self._rate_limit(max_per_minute, request_times)
             ts = td.time_series(
                 symbol=ticker,
                 interval=interval,
@@ -427,9 +433,11 @@ class DataFetcher:
 
             # The loop has reached the earliest available datetime
             if len(temp_df) < 5000:
+                logger.info(
+                    "API returned <5000 row dataframe for ticker %s [%s -> %s]  interval=%s",
+                    ticker, start_date, end_date, interval,
+                )
                 break
-
-            time.sleep(2)
 
         df = pd.concat(all_dfs) if all_dfs else pd.DataFrame()
 
@@ -448,6 +456,18 @@ class DataFetcher:
         df = df[(df['close'] >= 0) & (df['volume'] >= 0)]
 
         return df
+
+    @staticmethod
+    def _rate_limit(
+        max_per_minute: int,
+        request_times: deque,
+    ) -> None:
+        now = time.monotonic()
+        if len(request_times) == max_per_minute and (now - request_times[0]) < 60:
+            wait = 60 - (now - request_times[0])
+            logger.debug("Rate limit: sleeping %.1fs", wait)
+            time.sleep(wait)
+        request_times.append(time.monotonic())
 
     @staticmethod
     def _normalize_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
