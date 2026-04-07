@@ -391,7 +391,7 @@ class DataFetcher:
         all_dfs = []
 
         if end is None:
-            self._rate_limit("twelvedata", max_per_minute=8)
+            self._rate_limit("twelvedata", max_per_minute=7)
             # Send the first request on the latest available date
             ts = td.time_series(
                 symbol=ticker,
@@ -407,7 +407,7 @@ class DataFetcher:
             current = temp_df.index.min() - timedelta(minutes=1)
 
         while current > start:
-            self._rate_limit("twelvedata", max_per_minute=8)
+            self._rate_limit("twelvedata", max_per_minute=7)
             ts = td.time_series(
                 symbol=ticker,
                 interval=interval,
@@ -462,13 +462,24 @@ class DataFetcher:
     ) -> None:
         if key not in self._rate_limit_windows:
             self._rate_limit_windows[key] = deque(maxlen=max_per_minute)
+
         request_times = self._rate_limit_windows[key]
         now = time.monotonic()
-        if len(request_times) == max_per_minute and (now - request_times[0]) < 60:
-            wait = 60 - (now - request_times[0])
-            logger.debug("Rate limit [%s]: sleeping %.1fs", key, wait)
-            time.sleep(wait)
-        request_times.append(time.monotonic())
+
+        # If we've hit the limit
+        if len(request_times) == max_per_minute:
+            elapsed = now - request_times[0]
+
+            if elapsed < 60:
+                wait = 60 - elapsed
+                logger.debug("Rate limit [%s]: sleeping %.2fs", key, wait)
+                time.sleep(wait)
+
+                # recompute time after sleep
+                now = time.monotonic()
+
+        # Record this request
+        request_times.append(now)
 
     @staticmethod
     def _normalize_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
