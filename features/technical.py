@@ -63,6 +63,43 @@ def compute_ema(df: pd.DataFrame, span: int = 20) -> pd.Series:
     return df["close"].ewm(span=span, adjust=False).mean()
 
 
+def compute_wma(df: pd.DataFrame, window: int = 20) -> pd.Series:
+    """Weighted moving average of the close price.
+
+    Weights increase linearly: the most recent bar receives weight *window*,
+    the bar before it *window - 1*, and so on down to 1 for the oldest bar
+    in the window.
+    """
+    weights = np.arange(1, window + 1, dtype=float)
+    return df["close"].rolling(window=window).apply(
+        lambda x: np.dot(x, weights) / weights.sum(), raw=True,
+    )
+
+
+def compute_hma(df: pd.DataFrame, window: int = 20) -> pd.Series:
+    """Hull moving average of the close price.
+
+    HMA = WMA(2 * WMA(n/2) - WMA(n), sqrt(n))
+
+    The Hull MA reduces lag significantly compared to a standard WMA while
+    keeping the curve smooth.
+    """
+    half_window = max(int(window / 2), 1)
+    sqrt_window = max(int(np.sqrt(window)), 1)
+
+    wma_half = compute_wma(df, window=half_window)
+    wma_full = compute_wma(df, window=window)
+
+    diff = 2 * wma_half - wma_full
+
+    # Apply a final WMA(sqrt(n)) on the diff series
+    weights = np.arange(1, sqrt_window + 1, dtype=float)
+    hma = diff.rolling(window=sqrt_window).apply(
+        lambda x: np.dot(x, weights) / weights.sum(), raw=True,
+    )
+    return hma
+
+
 # ---------------------------------------------------------------------------
 # Momentum / oscillators
 # ---------------------------------------------------------------------------
