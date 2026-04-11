@@ -9,6 +9,7 @@ import yfinance as yf
 from sqlalchemy import text
 from twelvedata import TDClient
 from collections import deque
+from threading import Lock
 
 from config.settings import settings
 from database.connection import get_engine, get_session
@@ -35,6 +36,7 @@ class DataFetcher:
         self.retry_delay = retry_delay or settings.pipeline.retry_delay_seconds
         self.engine = get_engine()
         self._rate_limit_windows: dict[str, deque] = {}
+        self._rate_limit_lock = Lock()
 
     # ------------------------------------------------------------------
     # yfinance helpers
@@ -460,26 +462,27 @@ class DataFetcher:
         key: str,
         max_per_minute: int,
     ) -> None:
-        if key not in self._rate_limit_windows:
-            self._rate_limit_windows[key] = deque(maxlen=max_per_minute)
+        with self._rate_limit_lock:
+            if key not in self._rate_limit_windows:
+                self._rate_limit_windows[key] = deque(maxlen=max_per_minute)
 
-        request_times = self._rate_limit_windows[key]
-        now = time.monotonic()
+            request_times = self._rate_limit_windows[key]
+            now = time.monotonic()
 
-        # If we've hit the limit
-        if len(request_times) == max_per_minute:
-            elapsed = now - request_times[0]
+            # If we've hit the limit
+            if len(request_times) == max_per_minute:
+                elapsed = now - request_times[0]
 
-            if elapsed < 60:
-                wait = 60 - elapsed
-                logger.debug("Rate limit [%s]: sleeping %.2fs", key, wait)
-                time.sleep(wait)
+                if elapsed < 60:
+                    wait = 60 - elapsed
+                    logger.debug("Rate limit [%s]: sleeping %.2fs", key, wait)
+                    time.sleep(wait)
 
-                # recompute time after sleep
-                now = time.monotonic()
+                    # recompute time after sleep
+                    now = time.monotonic()
 
-        # Record this request
-        request_times.append(now)
+            # Record this request
+            request_times.append(now)
 
     @staticmethod
     def _normalize_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
