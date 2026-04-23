@@ -1,0 +1,13 @@
+# Feature toggles for the alt-data flight pipeline.
+# Set a feature to false to skip it during compute_features().
+features:
+  route_reconstruction: true
+  passenger_cargo_proxy: true
+  net_flow: true
+  turnaround_time: true
+  fleet_utilization: true
+  hub_analysis: true
+  airline_strategy: true
+  delay_congestion: true
+  supply_demand: true
+  event_detection: true

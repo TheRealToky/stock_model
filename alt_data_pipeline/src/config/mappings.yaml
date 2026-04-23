@@ -1,0 +1,33 @@
+# Mapping layer: airport ICAO -> list of tradable tickers (airlines,
+# airport operators, tourism-exposed names). Extend freely.
+airport_to_tickers:
+  KJFK: [DAL, UAL, AAL, JBLU]
+  KLAX: [DAL, UAL, AAL, LUV]
+  KORD: [UAL, AAL, LUV]
+  KATL: [DAL]
+  KDFW: [AAL]
+  EGLL: [IAG.L, RYA.L, EZJ.L]
+  EDDF: [LHA.DE, FRA.DE]
+  LFPG: [AF.PA, ADP.PA]
+  EHAM: [AF.PA, KLM.AS]
+  RJTT: [9201.T, 9202.T]
+
+# Airport ICAO -> economic region (used by Hub analysis + regional joins).
+airport_to_region:
+  KJFK: US-NE
+  KLAX: US-W
+  KORD: US-MW
+  KATL: US-SE
+  KDFW: US-S
+  EGLL: EU-UK
+  EDDF: EU-DE
+  LFPG: EU-FR
+  EHAM: EU-NL
+  RJTT: ASIA-JP
+
+# Route (orig ICAO -> dest ICAO) to tradable-asset mapping for
+# route-level analysis. Keys are strings like "KJFK->EGLL".
+route_to_tickers:
+  "KJFK->EGLL": [DAL, IAG.L]
+  "KJFK->LFPG": [DAL, AF.PA]
+  "KLAX->RJTT": [UAL, 9201.T]
