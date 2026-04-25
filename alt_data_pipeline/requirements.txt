@@ -1,0 +1,25 @@
+# Alt-data pipeline dependencies.
+# Installed inside the alt-pipeline container.
+
+# --- Data / numerics ---
+numpy>=1.26
+pandas>=2.2
+
+# --- HTTP / API ---
+requests>=2.31
+urllib3>=2.0
+
+# --- Database ---
+sqlalchemy>=2.0
+psycopg2-binary>=2.9
+asyncpg>=0.29
+
+# --- Utilities ---
+pyyaml>=6.0
+python-dotenv>=1.0
+loguru>=0.7
+tqdm>=4.66
+
+# --- Testing ---
+pytest>=8.0
+pytest-mock>=3.12
