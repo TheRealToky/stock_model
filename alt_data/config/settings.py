@@ -67,11 +67,27 @@ class FinancialDatabaseConfig:
 
 @dataclass
 class OpenSkyConfig:
-    """OpenSky Network API configuration."""
+    """OpenSky Network API configuration.
+
+    Authentication uses the OAuth2 client-credentials flow against
+    OpenSky's Keycloak realm.  Issue a client at
+    https://opensky-network.org/my-opensky/account and set
+    ``OPENSKY_CLIENT_ID`` / ``OPENSKY_CLIENT_SECRET``.
+    """
 
     base_url: str = os.getenv("OPENSKY_BASE_URL", "https://opensky-network.org/api")
-    username: str | None = os.getenv("OPENSKY_USERNAME")
-    password: str | None = os.getenv("OPENSKY_PASSWORD")
+    token_url: str = os.getenv(
+        "OPENSKY_TOKEN_URL",
+        "https://auth.opensky-network.org/auth/realms/opensky-network"
+        "/protocol/openid-connect/token",
+    )
+    client_id: str | None = os.getenv("OPENSKY_CLIENT_ID")
+    client_secret: str | None = os.getenv("OPENSKY_CLIENT_SECRET")
+    # Refresh the cached token this many seconds before its advertised
+    # expiry to avoid edge-case 401s from clock skew.
+    token_refresh_margin_seconds: int = int(
+        os.getenv("OPENSKY_TOKEN_REFRESH_MARGIN", "30")
+    )
     # Anonymous ~100 req/day; authenticated ~4000 req/day. Be conservative
     # per-minute so we never spike and trigger a global block.
     max_requests_per_minute: int = int(os.getenv("OPENSKY_RPM", "30"))
