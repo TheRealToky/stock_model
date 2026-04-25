@@ -14,9 +14,9 @@ from threading import Lock
 from typing import Any
 
 import requests
-from requests.auth import HTTPBasicAuth
 
 from alt_data.config.settings import alt_settings
+from alt_data.ingestion.opensky_auth import TokenManager
 from alt_data.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -30,31 +30,48 @@ class OpenSkyClient:
     * :meth:`get_arrivals_by_airport`
     * :meth:`get_departures_by_airport`
 
+    Authentication uses OAuth2 client-credentials via
+    :class:`TokenManager`.  When ``OPENSKY_CLIENT_ID`` and
+    ``OPENSKY_CLIENT_SECRET`` are unset the client falls back to
+    anonymous mode (much lower quota -- ~100 req/day).
+
     The client is safe to share between threads -- the rate-limit
-    window is protected by a lock.
+    window is protected by a lock and the token manager serializes
+    refreshes.
     """
 
     def __init__(
         self,
         base_url: str | None = None,
-        username: str | None = None,
-        password: str | None = None,
+        token_manager: TokenManager | None = None,
         max_requests_per_minute: int | None = None,
         timeout: int | None = None,
         max_retries: int | None = None,
     ) -> None:
         cfg = alt_settings.opensky
         self.base_url = (base_url or cfg.base_url).rstrip("/")
-        self.username = username if username is not None else cfg.username
-        self.password = password if password is not None else cfg.password
         self.max_rpm = max_requests_per_minute or cfg.max_requests_per_minute
         self.timeout = timeout or cfg.request_timeout_seconds
         self.max_retries = max_retries or alt_settings.pipeline.max_retries
 
-        self._session = requests.Session()
-        if self.username and self.password:
-            self._session.auth = HTTPBasicAuth(self.username, self.password)
+        if token_manager is not None:
+            self._token_manager: TokenManager | None = token_manager
+        elif cfg.client_id and cfg.client_secret:
+            self._token_manager = TokenManager(
+                token_url=cfg.token_url,
+                client_id=cfg.client_id,
+                client_secret=cfg.client_secret,
+                refresh_margin_seconds=cfg.token_refresh_margin_seconds,
+                timeout=self.timeout,
+            )
+        else:
+            logger.warning(
+                "OpenSky client running anonymously: "
+                "OPENSKY_CLIENT_ID / OPENSKY_CLIENT_SECRET are not set"
+            )
+            self._token_manager = None
 
+        self._session = requests.Session()
         self._window: deque[float] = deque(maxlen=self.max_rpm)
         self._lock = Lock()
 
@@ -94,11 +111,17 @@ class OpenSkyClient:
         """GET *path* with exponential back-off retries and rate limiting."""
         url = f"{self.base_url}{path}"
         last_exc: Exception | None = None
+        retried_after_401 = False
 
         for attempt in range(1, self.max_retries + 1):
             self._rate_limit()
             try:
-                response = self._session.get(url, params=params, timeout=self.timeout)
+                response = self._session.get(
+                    url,
+                    params=params,
+                    timeout=self.timeout,
+                    headers=self._auth_headers(),
+                )
             except requests.RequestException as exc:
                 last_exc = exc
                 logger.warning(
@@ -115,6 +138,18 @@ class OpenSkyClient:
             if response.status_code == 404:
                 logger.debug("OpenSky 404 (no data) for {} {}", path, params)
                 return []
+
+            # 401 = token rejected. Force a refresh and retry once
+            # without backoff (clock-skew / server-side revocation).
+            if (
+                response.status_code == 401
+                and self._token_manager is not None
+                and not retried_after_401
+            ):
+                logger.warning("OpenSky 401 -- invalidating token and retrying once")
+                self._token_manager.invalidate()
+                retried_after_401 = True
+                continue
 
             # 429 = rate limit hit; 5xx = transient -> retry with backoff.
             if response.status_code in (429, 500, 502, 503, 504):
@@ -150,6 +185,12 @@ class OpenSkyClient:
             f"OpenSky {path} failed after {self.max_retries} attempts: "
             f"{last_exc!r}"
         )
+
+    def _auth_headers(self) -> dict[str, str]:
+        """Return per-request auth headers (empty when anonymous)."""
+        if self._token_manager is None:
+            return {}
+        return self._token_manager.headers()
 
     def _rate_limit(self) -> None:
         """Block until we are under ``max_rpm`` requests in the last 60s."""
