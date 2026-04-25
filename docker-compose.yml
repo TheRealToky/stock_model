@@ -136,9 +136,10 @@ services:
       TIMESCALE_USER: ${TIMESCALE_USER:-quantlab}
       TIMESCALE_PASSWORD: ${TIMESCALE_PASSWORD:-quantlab_secret}
 
-      # OpenSky credentials (optional -- anonymous works with low quotas)
-      OPENSKY_USERNAME: ${OPENSKY_USERNAME:-}
-      OPENSKY_PASSWORD: ${OPENSKY_PASSWORD:-}
+      # OpenSky OAuth2 credentials (client-credentials flow).
+      # Optional -- anonymous works at much lower quotas (~100 req/day).
+      OPENSKY_CLIENT_ID: ${OPENSKY_CLIENT_ID:-}
+      OPENSKY_CLIENT_SECRET: ${OPENSKY_CLIENT_SECRET:-}
 
       PYTHONPATH: /app
     volumes:
