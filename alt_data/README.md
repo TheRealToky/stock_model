@@ -75,10 +75,14 @@ ALT_DB_NAME=alt_data
 ALT_DB_USER=alt_user
 ALT_DB_PASSWORD=alt_secret
 
-OPENSKY_USERNAME=
-OPENSKY_PASSWORD=
+OPENSKY_CLIENT_ID=
+OPENSKY_CLIENT_SECRET=
 OPENSKY_RPM=30
 ```
+
+OpenSky uses an OAuth2 client-credentials flow.  Issue a client at
+[opensky-network.org/my-opensky/account](https://opensky-network.org/my-opensky/account).
+Leave both empty to run anonymously at much lower quotas (~100 req/day).
 
 The financial-DB block (`TIMESCALE_*`) is shared with the root pipeline.
 
