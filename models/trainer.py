@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import TimeSeriesSplit
 
-from config.settings import settings
+from financials.config.settings import settings
 from models.base import BaseModel
 from models.registry import ModelRegistry
 
@@ -68,8 +68,8 @@ class ModelTrainer:
             ValueError: If insufficient data is available after feature
                 computation.
         """
-        from data_pipeline.loader import DataLoader
-        from features.engine import FeatureEngine
+        from financials.data_pipeline.loader import DataLoader
+        from financials.features.engine import FeatureEngine
 
         test_size = test_size or settings.model.default_test_size
         start_date = start_date or settings.pipeline.default_start_date

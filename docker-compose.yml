@@ -3,19 +3,22 @@
 # =============================================================================
 #
 # Services:
-#   timescaledb  - TimescaleDB (PostgreSQL 16) with persistent volume
-#   python-app   - Python research / pipeline container
+#   timescaledb  - TimescaleDB (PostgreSQL 16) for OHLCV / financial data
+#   python-app   - Python research / pipeline container (financial side)
 #   jupyter      - JupyterLab notebook server
+#   alt-postgres - PostgreSQL 16 dedicated to alternative data
+#   alt-pipeline - Python service container for the alt-data pipeline
 #
 # Usage:
-#   docker compose up -d            # start all services
-#   docker compose up -d timescaledb # start only the database
-#   docker compose logs -f jupyter   # follow Jupyter logs for the token URL
+#   docker compose up -d                   # start everything
+#   docker compose up -d timescaledb       # start only the financial DB
+#   docker compose up -d alt-postgres alt-pipeline   # only the alt stack
+#   docker compose logs -f jupyter         # follow Jupyter logs for the token URL
 # =============================================================================
 
 services:
   # ---------------------------------------------------------------------------
-  # TimescaleDB
+  # TimescaleDB (financial / OHLCV data)
   # ---------------------------------------------------------------------------
   timescaledb:
     image: timescale/timescaledb:latest-pg16
@@ -44,7 +47,7 @@ services:
   python-app:
     build:
       context: .
-      dockerfile: docker/Dockerfile.python
+      dockerfile: docker/Dockerfile.financials
     container_name: quantlab-python
     restart: unless-stopped
     env_file:
@@ -82,6 +85,71 @@ services:
       timescaledb:
         condition: service_healthy
 
+  # ---------------------------------------------------------------------------
+  # Alt-data PostgreSQL
+  # ---------------------------------------------------------------------------
+  alt-postgres:
+    image: postgres:16
+    container_name: alt-data-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${ALT_DB_NAME:-alt_data}
+      POSTGRES_USER: ${ALT_DB_USER:-alt_user}
+      POSTGRES_PASSWORD: ${ALT_DB_PASSWORD:-alt_secret}
+    ports:
+      - "5433:5432"
+    volumes:
+      - alt_postgres_data:/var/lib/postgresql/data
+    networks:
+      - alt-data-net
+      - quantlab-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ALT_DB_USER:-alt_user} -d ${ALT_DB_NAME:-alt_data}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # Alt-data pipeline service
+  # ---------------------------------------------------------------------------
+  alt-pipeline:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.alt_data
+    container_name: alt-data-pipeline
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Alt-data DB (inside the alt-data-net)
+      ALT_DB_HOST: alt-postgres
+      ALT_DB_PORT: "5432"
+      ALT_DB_NAME: ${ALT_DB_NAME:-alt_data}
+      ALT_DB_USER: ${ALT_DB_USER:-alt_user}
+      ALT_DB_PASSWORD: ${ALT_DB_PASSWORD:-alt_secret}
+
+      # Financial DB (lives on the quantlab-net)
+      TIMESCALE_HOST: timescaledb
+      TIMESCALE_PORT: "5432"
+      TIMESCALE_DB: ${TIMESCALE_DB:-quantlab}
+      TIMESCALE_USER: ${TIMESCALE_USER:-quantlab}
+      TIMESCALE_PASSWORD: ${TIMESCALE_PASSWORD:-quantlab_secret}
+
+      # OpenSky credentials (optional -- anonymous works with low quotas)
+      OPENSKY_USERNAME: ${OPENSKY_USERNAME:-}
+      OPENSKY_PASSWORD: ${OPENSKY_PASSWORD:-}
+
+      PYTHONPATH: /app
+    volumes:
+      - .:/app
+    networks:
+      - alt-data-net
+      - quantlab-net
+    depends_on:
+      alt-postgres:
+        condition: service_healthy
+
 # =============================================================================
 # Volumes & Networks
 # =============================================================================
@@ -90,7 +158,11 @@ volumes:
     driver: local
   pip_cache:
     driver: local
+  alt_postgres_data:
+    driver: local
 
 networks:
   quantlab-net:
+    driver: bridge
+  alt-data-net:
     driver: bridge

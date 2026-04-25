@@ -10,21 +10,36 @@
 
 ```
 quant-lab/
-├── config/                 # Centralized configuration
-│   └── settings.py
-├── database/               # Database schema, connection, migrations
-│   ├── connection.py
-│   ├── schema.py
-│   └── migrate.py
-├── data_pipeline/          # Data fetching, cleaning, loading
-│   ├── ingestion.py
-│   ├── cleaning.py
-│   ├── loader.py
-│   └── runner.py
-├── features/               # Feature engineering
-│   ├── technical.py
-│   ├── registry.py
-│   └── engine.py
+├── financials/             # Financial / OHLCV side
+│   ├── config/             # Centralized configuration
+│   │   └── settings.py
+│   ├── database/           # Database schema, connection, migrations
+│   │   ├── connection.py
+│   │   ├── schema.py
+│   │   └── migrate.py
+│   ├── data_pipeline/      # Data fetching, cleaning, loading
+│   │   ├── ingestion.py
+│   │   ├── cleaning.py
+│   │   ├── loader.py
+│   │   └── runner.py
+│   ├── features/           # Feature engineering
+│   │   ├── technical.py
+│   │   ├── registry.py
+│   │   └── engine.py
+│   └── backtesting/        # Backtesting engines and metrics
+│       ├── engine.py
+│       ├── metrics.py
+│       ├── report.py
+│       └── vectorized.py
+├── alt_data/               # Alternative data pipeline (OpenSky flights)
+│   ├── config/             # Settings + YAML
+│   ├── ingestion/          # OpenSky client, fetcher
+│   ├── cleaning/           # Data cleaning
+│   ├── features/           # Feature engineering for alt data
+│   ├── database/           # Storage layer + migrations/
+│   ├── query/              # Cross-dataset query layer
+│   ├── utils/              # Logging, time utilities
+│   └── run_pipeline.py
 ├── models/                 # ML model implementations
 │   ├── base.py
 │   ├── xgboost_model.py
@@ -37,20 +52,31 @@ quant-lab/
 │   ├── momentum.py
 │   ├── mean_reversion.py
 │   └── registry.py
-├── backtesting/            # Backtesting engines and metrics
-│   ├── engine.py
-│   ├── metrics.py
-│   ├── report.py
-│   └── vectorized.py
-├── research/               # Example workflows
+├── notebooks/              # Jupyter notebooks + example workflows
+│   ├── 01_data_exploration.ipynb
+│   ├── 02_feature_engineering.ipynb
+│   ├── 03_strategy_backtest.ipynb
+│   ├── 04_ml_pipeline.ipynb
+│   ├── 05_cross_dataset_example.ipynb
 │   └── full_workflow.py
 ├── tests/                  # Unit and integration tests
 │   └── unit/
-│       ├── test_backtest_engine.py
-│       ├── test_metrics.py
-│       ├── test_strategies.py
-│       └── test_technical.py
-├── docker/                 # Docker configuration
+│       ├── financials/
+│       │   ├── test_backtest_engine.py
+│       │   ├── test_metrics.py
+│       │   ├── test_strategies.py
+│       │   └── test_technical.py
+│       └── alt_data/
+│           ├── test_cleaner.py
+│           ├── test_features.py
+│           ├── test_fetcher.py
+│           ├── test_flight_data.py
+│           ├── test_query.py
+│           └── test_time_utils.py
+├── docker/                 # Docker build files
+│   ├── Dockerfile.financials
+│   ├── Dockerfile.alt_data
+│   └── Dockerfile.jupyter
 ├── docker-compose.yml
 ├── pyproject.toml
 └── requirements.txt
@@ -84,7 +110,7 @@ DataFetcher  ──►  TimescaleDB (OHLCV + Instruments)
 
 ---
 
-### `config/settings.py`
+### `financials/config/settings.py`
 
 Centralized configuration for all components.
 
@@ -135,7 +161,7 @@ Aggregates all config classes. Singleton accessor via `settings` property.
 
 ---
 
-### `database/connection.py`
+### `financials/database/connection.py`
 
 Database connection and session management.
 
@@ -150,7 +176,7 @@ Database connection and session management.
 
 ---
 
-### `database/schema.py`
+### `financials/database/schema.py`
 
 SQLAlchemy ORM models for TimescaleDB.
 
@@ -230,7 +256,7 @@ Backtest execution results.
 
 ---
 
-### `database/migrate.py`
+### `financials/database/migrate.py`
 
 SQL migration runner.
 
@@ -247,7 +273,7 @@ SQL migration runner.
 
 ---
 
-### `data_pipeline/ingestion.py`
+### `financials/data_pipeline/ingestion.py`
 
 #### Class: `DataFetcher`
 Fetches market data from yfinance and stores it in the database.
@@ -268,7 +294,7 @@ Fetches market data from yfinance and stores it in the database.
 
 ---
 
-### `data_pipeline/cleaning.py`
+### `financials/data_pipeline/cleaning.py`
 
 #### Class: `DataCleaner`
 Cleans and validates OHLCV data.
@@ -283,7 +309,7 @@ Cleans and validates OHLCV data.
 
 ---
 
-### `data_pipeline/loader.py`
+### `financials/data_pipeline/loader.py`
 
 #### Class: `DataLoader`
 Loads data from the database into DataFrames.
@@ -302,7 +328,7 @@ Loads data from the database into DataFrames.
 
 ---
 
-### `data_pipeline/runner.py`
+### `financials/data_pipeline/runner.py`
 
 CLI entry point for the data pipeline.
 
@@ -316,7 +342,7 @@ CLI entry point for the data pipeline.
 
 ---
 
-### `features/technical.py`
+### `financials/features/technical.py`
 
 Standalone functions for computing technical indicators on OHLCV DataFrames.
 
@@ -338,7 +364,7 @@ Standalone functions for computing technical indicators on OHLCV DataFrames.
 
 ---
 
-### `features/registry.py`
+### `financials/features/registry.py`
 
 Feature registration system.
 
@@ -352,7 +378,7 @@ Feature registration system.
 
 ---
 
-### `features/engine.py`
+### `financials/features/engine.py`
 
 #### Class: `FeatureEngine`
 Orchestrates feature computation and storage.
@@ -540,7 +566,7 @@ Manages strategy metadata in the database.
 
 ---
 
-### `backtesting/engine.py`
+### `financials/backtesting/engine.py`
 
 #### Dataclass: `BacktestResult`
 Container for backtest output.
@@ -567,7 +593,7 @@ Event-driven backtesting engine.
 
 ---
 
-### `backtesting/metrics.py`
+### `financials/backtesting/metrics.py`
 
 Performance metric functions.
 
@@ -584,7 +610,7 @@ Performance metric functions.
 
 ---
 
-### `backtesting/report.py`
+### `financials/backtesting/report.py`
 
 #### Class: `BacktestReport`
 Generates and persists backtest reports.
@@ -598,7 +624,7 @@ Generates and persists backtest reports.
 
 ---
 
-### `backtesting/vectorized.py`
+### `financials/backtesting/vectorized.py`
 
 #### Class: `VectorizedBacktest`
 Fast numpy-based backtesting for rapid iteration.
@@ -610,7 +636,7 @@ Fast numpy-based backtesting for rapid iteration.
 
 ---
 
-### `research/full_workflow.py`
+### `notebooks/full_workflow.py`
 
 End-to-end example workflow.
 

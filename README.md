@@ -90,30 +90,54 @@ backtest_results              │ created/updated          │
 ```
 quant-lab/
 │
-├── config/                    # Central configuration
+├── financials/                # Financial / OHLCV side of the lab
 │   ├── __init__.py
-│   └── settings.py            # Database, pipeline, backtest, model settings
+│   ├── config/                # Central configuration
+│   │   ├── __init__.py
+│   │   └── settings.py        # Database, pipeline, backtest, model settings
+│   │
+│   ├── database/              # Database layer
+│   │   ├── __init__.py
+│   │   ├── connection.py      # SQLAlchemy engine & session factory
+│   │   ├── schema.py          # ORM models for all tables
+│   │   ├── migrate.py         # Migration runner script
+│   │   └── migrations/
+│   │       └── 001_initial_schema.sql  # Idempotent schema with hypertables
+│   │
+│   ├── data_pipeline/         # Data ingestion & transformation
+│   │   ├── __init__.py
+│   │   ├── ingestion.py       # yfinance fetcher + DB upserts
+│   │   ├── cleaning.py        # Dedup, fill, timezone normalization
+│   │   ├── loader.py          # Load from DB → DataFrames
+│   │   └── runner.py          # CLI: ingest / update / status
+│   │
+│   ├── features/              # Feature engineering
+│   │   ├── __init__.py
+│   │   ├── technical.py       # Pure indicator functions (RSI, MACD, etc.)
+│   │   ├── engine.py          # Compute + store features
+│   │   └── registry.py        # Feature function registry
+│   │
+│   └── backtesting/           # Backtesting engine
+│       ├── __init__.py
+│       ├── engine.py          # Event-driven backtest simulator
+│       ├── metrics.py         # Sharpe, Sortino, MaxDD, CAGR, etc.
+│       ├── report.py          # Report generation + DB persistence
+│       └── vectorized.py      # Fast numpy / vectorbt backtests
 │
-├── database/                  # Database layer
+├── alt_data/                  # Alternative-data pipeline (OpenSky flights)
 │   ├── __init__.py
-│   ├── connection.py          # SQLAlchemy engine & session factory
-│   ├── schema.py              # ORM models for all tables
-│   ├── migrate.py             # Migration runner script
-│   └── migrations/
-│       └── 001_initial_schema.sql  # Idempotent schema with hypertables
-│
-├── data_pipeline/             # Data ingestion & transformation
-│   ├── __init__.py
-│   ├── ingestion.py           # yfinance fetcher + DB upserts
-│   ├── cleaning.py            # Dedup, fill, timezone normalization
-│   ├── loader.py              # Load from DB → DataFrames
-│   └── runner.py              # CLI: ingest / update / status
-│
-├── features/                  # Feature engineering
-│   ├── __init__.py
-│   ├── technical.py           # Pure indicator functions (RSI, MACD, etc.)
-│   ├── engine.py              # Compute + store features
-│   └── registry.py            # Feature function registry
+│   ├── README.md
+│   ├── requirements.txt
+│   ├── run_pipeline.py        # CLI runner
+│   ├── config/                # Settings + YAML (features.yaml, mappings.yaml)
+│   ├── ingestion/             # OpenSky client, fetcher, schemas
+│   ├── cleaning/              # Cleaning logic
+│   ├── features/              # Feature registry, engine, technicals
+│   ├── database/              # Storage layer + migrations/
+│   │   └── migrations/
+│   │       └── 001_initial_alt_schema.sql
+│   ├── query/                 # Cross-dataset query layer (DataHub, mappings)
+│   └── utils/                 # Logging, time utilities
 │
 ├── strategies/                # Trading strategies
 │   ├── __init__.py
@@ -132,30 +156,35 @@ quant-lab/
 │   ├── registry.py            # Model DB registry
 │   └── saved/                 # Serialized model artifacts
 │
-├── backtesting/               # Backtesting engine
-│   ├── __init__.py
-│   ├── engine.py              # Event-driven backtest simulator
-│   ├── metrics.py             # Sharpe, Sortino, MaxDD, CAGR, etc.
-│   ├── report.py              # Report generation + DB persistence
-│   └── vectorized.py          # Fast numpy / vectorbt backtests
-│
-├── research/                  # Jupyter notebooks
+├── notebooks/                 # Jupyter notebooks (research + alt-data)
 │   ├── 01_data_exploration.ipynb
 │   ├── 02_feature_engineering.ipynb
 │   ├── 03_strategy_backtest.ipynb
 │   ├── 04_ml_pipeline.ipynb
-│   └── full_workflow.py       # End-to-end script
+│   ├── 05_cross_dataset_example.ipynb
+│   ├── full_workflow.py       # End-to-end script
+│   └── example_cross_dataset.py
 │
 ├── docker/                    # Docker build files
-│   ├── Dockerfile.python      # Python research container
+│   ├── Dockerfile.financials  # Python research container (financial side)
+│   ├── Dockerfile.alt_data    # Alt-data pipeline container
 │   └── Dockerfile.jupyter     # JupyterLab container
 │
 ├── tests/                     # Test suite
 │   ├── unit/
-│   │   ├── test_metrics.py
-│   │   ├── test_strategies.py
-│   │   ├── test_technical.py
-│   │   └── test_backtest_engine.py
+│   │   ├── financials/
+│   │   │   ├── test_metrics.py
+│   │   │   ├── test_strategies.py
+│   │   │   ├── test_technical.py
+│   │   │   └── test_backtest_engine.py
+│   │   └── alt_data/
+│   │       ├── conftest.py
+│   │       ├── test_cleaner.py
+│   │       ├── test_features.py
+│   │       ├── test_fetcher.py
+│   │       ├── test_flight_data.py
+│   │       ├── test_query.py
+│   │       └── test_time_utils.py
 │   └── integration/
 │
 ├── docker-compose.yml         # Full environment orchestration
@@ -189,24 +218,24 @@ This launches three containers:
 ### 3. Run database migrations
 
 ```bash
-docker compose exec python-app python database/migrate.py
+docker compose exec python-app python -m financials.database.migrate
 ```
 
 ### 4. Ingest market data
 
 ```bash
 # Full ingestion (default tickers from 2010)
-docker compose exec python-app python -m data_pipeline.runner ingest
+docker compose exec python-app python -m financials.data_pipeline.runner ingest
 
 # Specific tickers
-docker compose exec python-app python -m data_pipeline.runner ingest \
+docker compose exec python-app python -m financials.data_pipeline.runner ingest \
     --tickers AAPL MSFT GOOGL --start 2020-01-01
 
 # Incremental update (fetch only new data)
-docker compose exec python-app python -m data_pipeline.runner update
+docker compose exec python-app python -m financials.data_pipeline.runner update
 
 # Check what's in the database
-docker compose exec python-app python -m data_pipeline.runner status
+docker compose exec python-app python -m financials.data_pipeline.runner status
 ```
 
 ### 5. Open JupyterLab
@@ -221,12 +250,12 @@ Navigate to `http://localhost:8888` (token: `quantlab`). Open the research noteb
 ## Example Workflow
 
 ```python
-from data_pipeline.ingestion import DataFetcher
-from data_pipeline.loader import DataLoader
-from features.engine import FeatureEngine
+from financials.data_pipeline.ingestion import DataFetcher
+from financials.data_pipeline.loader import DataLoader
+from financials.features.engine import FeatureEngine
 from strategies import EMACrossover, MeanReversion
-from backtesting.engine import BacktestEngine
-from backtesting.report import BacktestReport
+from financials.backtesting.engine import BacktestEngine
+from financials.backtesting.report import BacktestReport
 from models import XGBoostModel, ModelTrainer
 
 # 1. Fetch data
@@ -327,11 +356,11 @@ class MyModel(BaseModel):
 ### Add a new feature
 
 ```python
-# In features/technical.py
+# In financials/features/technical.py
 def compute_my_indicator(df, window=14):
     return df["close"].rolling(window).apply(my_func)
 
-# In features/registry.py
+# In financials/features/registry.py
 @register_feature("my_indicator")
 def _my_indicator(df, window=14):
     return compute_my_indicator(df, window)

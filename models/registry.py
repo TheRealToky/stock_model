@@ -22,8 +22,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from config.settings import settings
-from database.connection import get_engine, get_session
+from financials.config.settings import settings
+from financials.database.connection import get_engine, get_session
 from models.base import BaseModel
 
 logger = logging.getLogger(__name__)

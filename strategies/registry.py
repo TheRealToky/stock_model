@@ -14,8 +14,8 @@ from typing import Any
 import pandas as pd
 from sqlalchemy import text
 
-from config.settings import settings
-from database.connection import get_engine
+from financials.config.settings import settings
+from financials.database.connection import get_engine
 from strategies.base import BaseStrategy
 
 logger = logging.getLogger(__name__)
