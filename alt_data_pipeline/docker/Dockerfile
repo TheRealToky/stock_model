@@ -1,0 +1,30 @@
+# =============================================================================
+# Alt Data Pipeline -- Python service container
+# =============================================================================
+FROM python:3.12-slim AS base
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# --- dependency layer (cached unless requirements.txt changes) -------------
+COPY alt_data_pipeline/requirements.txt /tmp/alt_requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r /tmp/alt_requirements.txt
+
+# --- application code ------------------------------------------------------
+# We copy the whole repo so the container can ``import alt_data_pipeline``
+# as well as reach the root ``config`` / ``database`` packages if needed.
+COPY . .
+
+ENV PYTHONPATH=/app
+
+# Default: idle so ``docker compose run`` can drive it explicitly.
+CMD ["python", "-c", "print('alt-data-pipeline ready'); import time; time.sleep(1e9)"]
