@@ -1,0 +1,48 @@
+# Default ETL pipeline configuration.
+#
+# Override any field via:
+#   - editing this file
+#   - passing --config <other.yaml> to main.py
+#   - the `overrides` dict argument to load_config()
+
+extract:
+  interval: "1min"
+  start_date: "2021-01-01"
+  end_date: null            # null = up to latest available
+  tickers: []               # empty = all instruments in the DB
+  chunk_days: 60            # 60-day windows per ticker per chunk
+  warmup_rows: 200          # >= longest rolling window across enabled features
+  server_fetch_size: 50000
+
+features:
+  # null = compute every feature registered in the FEATURE_REGISTRY.
+  # Replace with an explicit list to subset, e.g.:
+  #   enabled_features: [log_returns, sma, rsi, macd, bollinger_bands]
+  enabled_features: null
+  # Override registry defaults per feature:
+  feature_params:
+    sma: {window: 20}
+    ema: {span: 20}
+    rsi: {window: 14}
+    macd: {fast: 12, slow: 26, signal: 9}
+    bollinger_bands: {window: 20, num_std: 2}
+    atr: {window: 14}
+    volatility: {window: 20}
+    rolling_stats: {window: 20}
+    volume_features: {window: 20}
+  drop_warmup_nans: true
+
+load:
+  output_path: "data/feature_store"
+  compression: "zstd"
+  compression_level: 3
+  row_group_size: 200000
+  partition_by_symbol: true
+  cast_float32: true
+
+runtime:
+  log_level: "INFO"
+  log_json: false
+  num_workers: null         # null = os.cpu_count()
+  manifest_filename: "_manifest.json"
+  skip_validation: false
