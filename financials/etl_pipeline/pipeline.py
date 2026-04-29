@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -166,20 +167,10 @@ class ETLPipeline:
         cfg = self.cfg
         warmup_rows = cfg.extract.warmup_rows
 
-        def _job(ticker: str) -> dict[str, Any]:
-            ticker_start = (
-                start[ticker] if isinstance(start, dict) else start
-            )
-            return _process_ticker(
-                cfg=cfg,
-                ticker=ticker,
-                start=ticker_start,
-                end=end,
-                warmup_rows=warmup_rows,
-            )
-
         results = map_tickers(
-            _job, tickers, max_workers=cfg.runtime.num_workers,
+            partial(_process_ticker, cfg=cfg, start=start, end=end, warmup_rows=warmup_rows),
+            tickers,
+            max_workers=cfg.runtime.num_workers,
         )
 
         # Merge results into manifest in the parent process.
@@ -229,10 +220,10 @@ class ETLPipeline:
 
 
 def _process_ticker(
+    ticker: str,
     *,
     cfg: ETLConfig,
-    ticker: str,
-    start: datetime,
+    start: datetime | dict[str, datetime],
     end: datetime | None,
     warmup_rows: int,
 ) -> dict[str, Any]:
@@ -245,6 +236,8 @@ def _process_ticker(
     # Fresh logging config in the worker process.
     configure_logging(cfg.runtime.log_level, json_mode=cfg.runtime.log_json)
 
+    ticker_start: datetime = start[ticker] if isinstance(start, dict) else start  # type: ignore[index]
+
     extractor = TimescaleExtractor(cfg.extract)
     transformer = FeatureTransformer(
         cfg.features,
@@ -255,8 +248,8 @@ def _process_ticker(
 
     # Pull a small look-back buffer of OHLCV rows so the rolling indicators
     # have warmed up by the time the cursor reaches `start`.
-    buffer_start = _pre_warmup_start(extractor, ticker, start, cfg.extract.interval, warmup_rows)
-    cutoff_ts = pd.Timestamp(start).tz_convert("UTC") if pd.Timestamp(start).tzinfo else pd.Timestamp(start, tz="UTC")
+    buffer_start = _pre_warmup_start(extractor, ticker, ticker_start, cfg.extract.interval, warmup_rows)
+    cutoff_ts = pd.Timestamp(ticker_start).tz_convert("UTC") if pd.Timestamp(ticker_start).tzinfo else pd.Timestamp(ticker_start, tz="UTC")
 
     rows_written = 0
     last_ts: datetime | None = None
