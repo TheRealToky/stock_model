@@ -5,40 +5,47 @@ A modular quantitative research lab for financial strategy development, backtest
 ## System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         QUANT LAB                                   │
-│                                                                     │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────────┐   │
-│  │   yfinance   │───▶│   Data       │───▶│   TimescaleDB        │   │
-│  │   API        │    │   Pipeline   │    │   (PostgreSQL 16)    │   │
-│  └──────────────┘    │              │    │                      │   │
-│                      │  • Ingestion │    │  • instruments       │   │
-│                      │  • Cleaning  │    │  • ohlcv_data ⊡      │   │
-│                      │  • Features  │    │  • features ⊡        │   │
-│                      └──────┬───────┘    │  • model_registry    │   │
-│                             │            │  • strategy_registry │   │
-│                             ▼            │  • backtest_results  │   │
-│                      ┌──────────────┐    │                      │   │
-│                      │   Feature    │───▶│  ⊡ = hypertable      │   │
-│                      │   Engine     │    └──────────┬───────────┘   │
-│                      └──────────────┘               │               │
-│                                                     │               │
-│  ┌──────────────┐    ┌──────────────┐               │               │
-│  │  Strategy    │    │  Backtest    │◀──────────────┘               │
-│  │  Framework   │───▶│  Engine      │                               │
-│  │              │    │              │    ┌──────────────────────┐   │
-│  │  • EMA Cross │    │  • Event-    │    │   ML Pipeline        │   │
-│  │  • Mean Rev  │    │    driven    │    │                      │   │
-│  │  • Momentum  │    │  • Vectorized│    │  • XGBoost           │   │
-│  └──────────────┘    │  • Metrics   │    │  • Random Forest     │   │
-│                      └──────────────┘    │  • Trainer           │   │
-│  ┌──────────────┐                        │  • Registry          │   │
-│  │  Jupyter     │    ┌──────────────┐    └──────────────────────┘   │
-│  │  Notebooks   │───▶│  Reports &   │                               │
-│  │  (Research)  │    │  Comparison  │                               │
-│  └──────────────┘    └──────────────┘                               │
-└─────────────────────────────────────────────────────────────────────┘
-        Docker Compose (timescaledb + python-app + jupyter)
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                               QUANT LAB                                      │
+│                                                                              │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────────┐            │
+│  │   yfinance   │───▶│   Data       │───▶│   TimescaleDB        │            │
+│  │   API        │    │   Pipeline   │    │   (PostgreSQL 16)    │            │
+│  └──────────────┘    │              │    │                      │            │
+│                      │  • Ingestion │    │  • instruments       │            │
+│                      │  • Cleaning  │    │  • ohlcv_data ⊡      │            │
+│                      │  • Loader    │    │  • features ⊡        │            │
+│                      └──────────────┘    │  • model_registry    │            │
+│                                          │  • strategy_registry │            │
+│  ┌──────────────┐    ┌──────────────┐    │  • backtest_results  │            │
+│  │  Strategy    │    │  Backtest    │◀───│                      │            │
+│  │  Framework   │───▶│  Engine      │    │  ⊡ = hypertable      │            │
+│  │              │    │              │    └──────────┬───────────┘            │
+│  │  • EMA Cross │    │  • Event-    │               │                        │
+│  │  • Mean Rev  │    │    driven    │               │                        │
+│  │  • Momentum  │    │  • Vectorized│               │                        │
+│  └──────────────┘    │  • Metrics   │               ▼                        │
+│                      └──────────────┘    ┌──────────────────────┐            │
+│                                          │   ETL Pipeline       │            │
+│  ┌──────────────┐    ┌──────────────┐    │   (Feature Store)    │            │
+│  │  Jupyter     │    │  Reports &   │    │                      │            │
+│  │  Notebooks   │───▶│  Comparison  │    │  • Chunked extract   │            │
+│  │  (Research)  │    │              │    │  • Feature compute   │            │
+│  └──────────────┘    └──────────────┘    │  • Parquet output    │            │
+│                                          │  • Manifest / incr.  │            │
+│                                          └──────────┬───────────┘            │
+│                                                     │                        │
+│                                                     ▼                        │
+│                                          ┌──────────────────────┐            │
+│                                          │   ML Pipeline        │            │
+│                                          │                      │            │
+│                                          │  • XGBoost           │            │
+│                                          │  • Random Forest     │            │
+│                                          │  • Trainer           │            │
+│                                          │  • Registry          │            │
+│                                          └──────────────────────┘            │
+└──────────────────────────────────────────────────────────────────────────────┘
+             Docker Compose (timescaledb + python-app + jupyter)
 ```
 
 ## Database Schema
@@ -116,6 +123,34 @@ quant-lab/
 │   │   ├── technical.py       # Pure indicator functions (RSI, MACD, etc.)
 │   │   ├── engine.py          # Compute + store features
 │   │   └── registry.py        # Feature function registry
+│   │
+│   ├── etl_pipeline/          # ML-ready feature store pipeline
+│   │   ├── __init__.py        # Public API: ETLPipeline, load_config, MLDataLoader
+│   │   ├── main.py            # CLI entry point (run / status)
+│   │   ├── pipeline.py        # ETLPipeline orchestrator + RunSummary
+│   │   ├── config/
+│   │   │   ├── etl_config.py  # Typed dataclass configuration
+│   │   │   └── pipeline.yaml  # Default config (extract / features / load / runtime)
+│   │   ├── extract/
+│   │   │   ├── base.py        # Abstract Extractor interface
+│   │   │   └── timescale.py   # Server-side cursor streaming from TimescaleDB
+│   │   ├── transform/
+│   │   │   ├── base.py        # Abstract Transformer interface
+│   │   │   └── feature_transformer.py  # FeatureEngine wrapper with warmup handling
+│   │   ├── load/
+│   │   │   ├── base.py        # Abstract Loader interface
+│   │   │   ├── parquet_writer.py  # Hive-partitioned Parquet output
+│   │   │   └── reader.py      # MLDataLoader for reading the feature store
+│   │   ├── features/
+│   │   │   └── selector.py    # Feature resolution / subsetting logic
+│   │   ├── utils/
+│   │   │   ├── logging.py     # Structured logging helpers
+│   │   │   ├── manifest.py    # High-water mark persistence (_manifest.json)
+│   │   │   ├── parallel.py    # Multi-worker process pool orchestration
+│   │   │   └── validation.py  # OHLCV + feature shape validation
+│   │   └── scripts/
+│   │       ├── run_pipeline.py       # Programmatic usage example
+│   │       └── load_for_training.py  # Dataset loading example for ML training
 │   │
 │   └── backtesting/           # Backtesting engine
 │       ├── __init__.py
@@ -238,7 +273,24 @@ docker compose exec python-app python -m financials.data_pipeline.runner update
 docker compose exec python-app python -m financials.data_pipeline.runner status
 ```
 
-### 5. Open JupyterLab
+### 5. Build the feature store (optional, for ML training)
+
+The ETL pipeline extracts OHLCV bars from TimescaleDB, computes technical features, and writes a Hive-partitioned Parquet dataset optimized for ML training.
+
+```bash
+# Full build (all tickers, full date window)
+docker compose exec python-app python -m financials.etl_pipeline.main run --mode full
+
+# Incremental update (only bars since the last run)
+docker compose exec python-app python -m financials.etl_pipeline.main run --mode incremental
+
+# Check dataset state
+docker compose exec python-app python -m financials.etl_pipeline.main status
+```
+
+See [`financials/etl_pipeline/README.md`](financials/etl_pipeline/README.md) for the full configuration reference.
+
+### 6. Open JupyterLab
 
 Navigate to `http://localhost:8888` (token: `quantlab`). Open the research notebooks in order:
 
@@ -246,53 +298,73 @@ Navigate to `http://localhost:8888` (token: `quantlab`). Open the research noteb
 2. **02_feature_engineering.ipynb** -- Compute technical indicators
 3. **03_strategy_backtest.ipynb** -- Run and compare strategies
 4. **04_ml_pipeline.ipynb** -- Train and evaluate ML models
+5. **05_cross_dataset_example.ipynb** -- Join OHLCV data with flight data
 
-## Example Workflow
+## Example Workflows
+
+### Strategy backtesting
 
 ```python
 from financials.data_pipeline.ingestion import DataFetcher
 from financials.data_pipeline.loader import DataLoader
 from financials.features.engine import FeatureEngine
-from strategies import EMACrossover, MeanReversion
+from strategies import EMACrossover
 from financials.backtesting.engine import BacktestEngine
 from financials.backtesting.report import BacktestReport
-from models import XGBoostModel, ModelTrainer
 
-# 1. Fetch data
+# 1. Fetch and load data
 fetcher = DataFetcher()
 fetcher.run_full_ingestion(["AAPL"], start_date="2020-01-01")
-
-# 2. Load from database
 loader = DataLoader()
 df = loader.load_ohlcv("AAPL", start_date="2020-01-01")
 
-# 3. Generate features
+# 2. Generate features
 engine = FeatureEngine()
 features = engine.compute_features(df)
 
-# 4. Run a strategy backtest
+# 3. Run a strategy backtest
 strategy = EMACrossover(fast_period=12, slow_period=26)
 bt = BacktestEngine(initial_capital=100_000)
 result = bt.run(strategy, df, ticker="AAPL")
 
 report = BacktestReport()
-print(report.generate(result))
-# Sharpe, Sortino, MaxDD, CAGR, win rate, etc.
+print(report.generate(result))  # Sharpe, Sortino, MaxDD, CAGR, win rate, etc.
+report.save_to_db(result)
+```
 
-# 5. Train an ML model
+### ML training via the feature store
+
+The ETL pipeline produces a Parquet feature store that is designed for fast, memory-efficient ML training. Use it when training over large date ranges or many tickers.
+
+```python
+from financials.etl_pipeline import ETLPipeline, load_config, MLDataLoader
+from models import XGBoostModel, ModelTrainer
+
+# 1. Build (or refresh) the feature store
+cfg = load_config(overrides={
+    "extract": {"tickers": ["AAPL", "MSFT", "NVDA"], "start_date": "2022-01-01"},
+    "features": {"enabled_features": ["log_returns", "sma", "ema", "rsi", "macd"]},
+    "runtime": {"num_workers": 4},
+})
+pipeline = ETLPipeline(cfg)
+pipeline.run_full()       # first-time build
+# pipeline.run_incremental()  # subsequent nightly updates
+
+# 2. Load the feature store for training
+loader = MLDataLoader("data/feature_store")
+df = loader.load(tickers=["AAPL"], start="2022-01-01", end="2024-01-01")
+
+# 3. Train an ML model
 trainer = ModelTrainer()
 X_tr, X_te, y_tr, y_te = trainer.prepare_data(
     ticker="AAPL",
-    feature_names=["returns", "rsi_14", "volatility_20", "macd"],
-    start_date="2020-01-01",
+    feature_names=["log_returns", "rsi", "macd"],
+    start_date="2022-01-01",
 )
 model = XGBoostModel(name="xgb_aapl_v1", n_estimators=200)
 trainer.train_model(model, X_tr, y_tr)
 metrics = trainer.evaluate_model(model, X_te, y_te)
 print(f"Accuracy: {metrics['accuracy']:.4f}")
-
-# 6. Store results
-report.save_to_db(result)
 ```
 
 ## Key Design Decisions
@@ -307,6 +379,9 @@ report.save_to_db(result)
 | **Feature registry** | Decorator-based registration makes adding new indicators trivial |
 | **Time-series CV** | `TimeSeriesSplit` prevents look-ahead bias in model evaluation |
 | **Vectorized + event-driven** | Fast screening via numpy, accurate simulation via the event engine |
+| **ETL feature store** | Parquet + manifest pattern decouples data prep from training; incremental runs keep it fresh without full rebuilds |
+| **Chunked extraction** | 60-day windows with server-side cursors keep memory flat regardless of history length |
+| **Warmup rows** | Extra bars prepended before each chunk let rolling indicators stabilize; these rows are stripped before writing |
 
 ## Extending the System
 
