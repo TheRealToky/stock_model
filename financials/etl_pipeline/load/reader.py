@@ -230,13 +230,14 @@ class MLDataLoader:
         end: str | None = None,
         symbols: Sequence[str] | None = None,
     ) -> str:
-        # ``hive_partitioning=1`` lets DuckDB infer ``date`` and ``symbol``
-        # columns from the directory names automatically.
-        #
-        # Enumerate matching date dirs from the filesystem so DuckDB only
-        # walks the relevant subset instead of the full /**/*.parquet tree.
-        # Without this, DuckDB must list every file before partition pruning,
-        # which is slow on large stores (especially on Windows).
+        """``hive_partitioning=1`` lets DuckDB infer ``date`` and ``symbol``
+        columns from the directory names automatically.
+
+        Enumerate matching date dirs from the filesystem so DuckDB only
+        walks the relevant subset instead of the full /**/*.parquet tree.
+        Without this, DuckDB must list every file before partition pruning,
+        which is slow on large stores (especially on Windows).
+        """
         date_dirs = self._matching_date_dirs(start, end)
         base = self.dataset_path.as_posix()
         if date_dirs is None or len(date_dirs) > 60:
