@@ -1,0 +1,66 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Claude / AI tooling
+.claude/
+
+# Data files
+data/
+alt_data/data/
+financials/data/
+docker/data/
+*.csv
+*.parquet
+*.h5
+*.xlsx
+
+# Saved models
+models/saved/
+*.joblib
+*.pkl
+
+# Notebooks (not needed at runtime)
+notebooks/
+.ipynb_checkpoints/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+build/
+dist/
+
+# Tests
+tests/
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs
+*.md
+README*
+DOCUMENTATION*
+
+# Git
+.git/
+.gitignore
+
+# Env files (use Docker secrets or env vars instead)
+.env
+.env.*

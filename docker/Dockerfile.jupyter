@@ -30,7 +30,7 @@ COPY . .
 ENV PYTHONPATH=/app
 
 # Expose the default JupyterLab port
-EXPOSE 8888
+EXPOSE 8889
 
 # Launch JupyterLab bound to all interfaces so it is reachable from the host.
 # The token is injected via the JUPYTER_TOKEN env var at runtime (see
