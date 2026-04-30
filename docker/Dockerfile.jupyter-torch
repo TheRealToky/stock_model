@@ -2,7 +2,7 @@
 # Quant Lab - Jupyter + PyTorch Container
 # PyTorch is baked into the base image so there is no slow pip install.
 # =============================================================================
-FROM pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime
+FROM pytorch/pytorch:2.11.0-cuda12.8-cudnn9-runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
