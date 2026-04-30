@@ -249,6 +249,20 @@ def compute_volume_features(df: pd.DataFrame, window: int = 20) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
+# Direction
+# ---------------------------------------------------------------------------
+
+def compute_price_direction(df: pd.DataFrame, periods: int = 1) -> pd.Series:
+    """Binary price direction: 1 if close rose over *periods* bars, else 0.
+
+    ``direction_t = 1  if close_t > close_{t-periods}  else 0``
+
+    The first *periods* rows will be NaN (no prior close to compare against).
+    """
+    return (df["close"] > df["close"].shift(periods)).astype("Int8")
+
+
+# ---------------------------------------------------------------------------
 # Price features
 # ---------------------------------------------------------------------------
 

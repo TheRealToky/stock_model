@@ -29,8 +29,10 @@ from financials.features.technical import (
     compute_atr,
     compute_bollinger_bands,
     compute_ema,
+    compute_hma,
     compute_log_returns,
     compute_macd,
+    compute_price_direction,
     compute_price_features,
     compute_returns,
     compute_rolling_stats,
@@ -38,6 +40,7 @@ from financials.features.technical import (
     compute_sma,
     compute_volatility,
     compute_volume_features,
+    compute_wma,
 )
 
 # ---------------------------------------------------------------------------
@@ -129,6 +132,8 @@ def _register_builtins() -> None:
         ("log_returns", compute_log_returns, {"periods": 1}),
         ("sma", compute_sma, {"window": 20}),
         ("ema", compute_ema, {"span": 20}),
+        ("wma", compute_wma, {"window": 20}),
+        ("hma", compute_hma, {"window": 20}),
         ("rsi", compute_rsi, {"window": 14}),
         ("macd", compute_macd, {"fast": 12, "slow": 26, "signal": 9}),
         ("bollinger_bands", compute_bollinger_bands, {"window": 20, "num_std": 2}),
@@ -137,6 +142,7 @@ def _register_builtins() -> None:
         ("rolling_stats", compute_rolling_stats, {"window": 20}),
         ("volume_features", compute_volume_features, {"window": 20}),
         ("price_features", compute_price_features, {}),
+        ("price_direction", compute_price_direction, {"periods": 1}),
     ]
 
     for name, func, params in builtins:
