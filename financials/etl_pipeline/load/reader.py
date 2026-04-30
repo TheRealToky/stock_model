@@ -224,10 +224,53 @@ class MLDataLoader:
     # SQL builder
     # ------------------------------------------------------------------
 
-    def _glob_path(self) -> str:
+    def _glob_path(
+        self,
+        start: str | None = None,
+        end: str | None = None,
+        symbols: Sequence[str] | None = None,
+    ) -> str:
         # ``hive_partitioning=1`` lets DuckDB infer ``date`` and ``symbol``
         # columns from the directory names automatically.
-        return f"{self.dataset_path.as_posix()}/**/*.parquet"
+        #
+        # Enumerate matching date dirs from the filesystem so DuckDB only
+        # walks the relevant subset instead of the full /**/*.parquet tree.
+        # Without this, DuckDB must list every file before partition pruning,
+        # which is slow on large stores (especially on Windows).
+        date_dirs = self._matching_date_dirs(start, end)
+        base = self.dataset_path.as_posix()
+        if date_dirs is None or len(date_dirs) > 60:
+            return f"{base}/**/*.parquet"
+        if symbols and len(symbols) <= 20:
+            paths = [
+                f"{base}/date={d}/symbol={s}/*.parquet"
+                for d in date_dirs
+                for s in symbols
+            ]
+        else:
+            paths = [f"{base}/date={d}/**/*.parquet" for d in date_dirs]
+        # DuckDB accepts a list literal: read_parquet(['a.parquet','b.parquet'])
+        return "[" + ", ".join(f"'{p}'" for p in paths) + "]"
+
+    def _matching_date_dirs(
+        self,
+        start: str | None,
+        end: str | None,
+    ) -> list[str] | None:
+        """Return sorted date partition names that fall within [start, end].
+
+        Returns ``None`` when no date filter is set (caller should fall back
+        to the full recursive glob).
+        """
+        if start is None and end is None:
+            return None
+        all_dates = sorted(
+            p.name.split("=", 1)[1] for p in self.dataset_path.glob("date=*")
+        )
+        return [
+            d for d in all_dates
+            if (start is None or d >= start) and (end is None or d <= end)
+        ]
 
     def _build_select(
         self,
@@ -242,23 +285,34 @@ class MLDataLoader:
         params: list[Any] = []
         where_parts: list[str] = []
 
-        if start is not None:
+        iso_start = _to_iso_date(start) if start is not None else None
+        iso_end = _to_iso_date(end) if end is not None else None
+
+        if iso_start is not None:
             where_parts.append("date >= ?")
-            params.append(_to_iso_date(start))
-        if end is not None:
+            params.append(iso_start)
+        if iso_end is not None:
             where_parts.append("date <= ?")
-            params.append(_to_iso_date(end))
+            params.append(iso_end)
         if symbols:
             placeholders = ",".join("?" for _ in symbols)
             where_parts.append(f"symbol IN ({placeholders})")
             params.extend(symbols)
+
+        glob = self._glob_path(start=iso_start, end=iso_end, symbols=symbols)
+        # List globs use bracket syntax; single globs use quoted string syntax.
+        from_clause = (
+            f"read_parquet({glob}, hive_partitioning=1)"
+            if glob.startswith("[")
+            else f"read_parquet('{glob}', hive_partitioning=1)"
+        )
 
         where_sql = f"WHERE {' AND '.join(where_parts)}" if where_parts else ""
         limit_sql = f"LIMIT {int(limit)}" if limit else ""
 
         sql = (
             f"SELECT {cols_sql} "
-            f"FROM read_parquet('{self._glob_path()}', hive_partitioning=1) "
+            f"FROM {from_clause} "
             f"{where_sql} {limit_sql}".strip()
         )
         return sql, params
