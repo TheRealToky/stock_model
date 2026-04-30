@@ -1,0 +1,42 @@
+# =============================================================================
+# Quant Lab - Jupyter + PyTorch Container
+# PyTorch is baked into the base image so there is no slow pip install.
+# =============================================================================
+FROM pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install OS-level build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# ---------------------------------------------------------------------------
+# Dependencies layer
+# Install project requirements on top of the pre-built PyTorch environment.
+# torch / torchvision / torchaudio are already present in the base image.
+# ---------------------------------------------------------------------------
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+# ---------------------------------------------------------------------------
+# Application code
+# ---------------------------------------------------------------------------
+COPY . .
+
+ENV PYTHONPATH=/app
+
+EXPOSE 8889
+
+CMD ["jupyter", "lab", \
+     "--ip=0.0.0.0", \
+     "--port=8889", \
+     "--no-browser", \
+     "--allow-root", \
+     "--notebook-dir=/app/notebooks"]

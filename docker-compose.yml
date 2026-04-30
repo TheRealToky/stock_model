@@ -3,11 +3,12 @@
 # =============================================================================
 #
 # Services:
-#   timescaledb  - TimescaleDB (PostgreSQL 16) for OHLCV / financial data
-#   python-app   - Python research / pipeline container (financial side)
-#   jupyter      - JupyterLab notebook server
-#   alt-postgres - PostgreSQL 16 dedicated to alternative data
-#   alt-pipeline - Python service container for the alt-data pipeline
+#   timescaledb    - TimescaleDB (PostgreSQL 16) for OHLCV / financial data
+#   python-app     - Python research / pipeline container (financial side)
+#   jupyter        - JupyterLab notebook server
+#   jupyter-torch  - JupyterLab + PyTorch (port 8889, torch baked into image)
+#   alt-postgres   - PostgreSQL 16 dedicated to alternative data
+#   alt-pipeline   - Python service container for the alt-data pipeline
 #
 # Usage:
 #   docker compose up -d                   # start everything
@@ -70,6 +71,30 @@ services:
       context: .
       dockerfile: docker/Dockerfile.jupyter
     container_name: quantlab-jupyter
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      JUPYTER_TOKEN: ${JUPYTER_TOKEN:-quantlab}
+    ports:
+      - "8889:8889"
+    volumes:
+      - .:/app
+      - pip_cache:/root/.cache/pip
+    networks:
+      - quantlab-net
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # JupyterLab + PyTorch (PyTorch baked into base image)
+  # ---------------------------------------------------------------------------
+  jupyter-torch:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.jupyter-torch
+    container_name: quantlab-jupyter-torch
     restart: unless-stopped
     env_file:
       - .env
