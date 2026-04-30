@@ -16,8 +16,8 @@ WORKDIR /app
 
 # --- dependency layer (cached unless requirements.txt changes) -------------
 COPY alt_data/requirements.txt /tmp/alt_requirements.txt
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r /tmp/alt_requirements.txt
+RUN pip install --no-cache-dir --break-system-packages --upgrade pip \
+    && pip install --no-cache-dir --break-system-packages -r /tmp/alt_requirements.txt
 
 # --- application code ------------------------------------------------------
 # We copy the whole repo so the container can ``import alt_data`` as well

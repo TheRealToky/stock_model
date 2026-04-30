@@ -20,8 +20,8 @@ WORKDIR /app
 # Dependencies layer (cached unless requirements.txt changes)
 # ---------------------------------------------------------------------------
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --break-system-packages --upgrade pip \
+    && pip install --no-cache-dir --break-system-packages -r requirements.txt
 
 # ---------------------------------------------------------------------------
 # Application code
