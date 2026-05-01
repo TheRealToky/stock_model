@@ -136,6 +136,95 @@ class LSTMModel(BaseModel):
     # BaseModel interface
     # ------------------------------------------------------------------
 
+    def train_from_loader(
+        self,
+        train_loader: "DataLoader",
+        val_loader: "DataLoader | None" = None,
+        *,
+        epochs: int | None = None,
+    ) -> None:
+        """Fit using pre-built DataLoaders (supports streaming IterableDatasets).
+
+        Parameters
+        ----------
+        train_loader:
+            DataLoader over the training set.  Works with both
+            ``TensorDataset`` and ``IterableDataset`` (e.g.
+            ``StreamingSequenceDataset``).
+        val_loader:
+            Optional DataLoader for per-epoch validation reporting.  When
+            omitted no validation metrics are recorded.
+        epochs:
+            Number of training epochs.  Defaults to ``self.epochs``.
+        """
+        n_epochs = epochs if epochs is not None else self.epochs
+        optimizer = torch.optim.Adam(self._net.parameters(), lr=self.learning_rate)
+        criterion = nn.BCEWithLogitsLoss()
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, mode="min", patience=5, factor=0.5
+        )
+
+        for epoch in range(1, n_epochs + 1):
+            train_loss = _run_epoch(
+                self._net, train_loader, criterion, optimizer, self.device, training=True
+            )
+            val_loss, val_acc = (
+                _run_eval(self._net, val_loader, criterion, self.device)
+                if val_loader is not None
+                else (float("nan"), float("nan"))
+            )
+            if val_loader is not None:
+                scheduler.step(val_loss)
+
+            self.train_history.append(
+                {
+                    "epoch": epoch,
+                    "train_loss": train_loss,
+                    "val_loss": val_loss,
+                    "val_acc": val_acc,
+                }
+            )
+            if epoch % 10 == 0 or epoch == 1:
+                logger.info(
+                    "[%s] epoch %d/%d  train_loss=%.4f  val_loss=%.4f  val_acc=%.4f",
+                    self.name,
+                    epoch,
+                    n_epochs,
+                    train_loss,
+                    val_loss,
+                    val_acc,
+                )
+
+    def predict_from_loader(
+        self,
+        loader: "DataLoader",
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Run inference over a DataLoader, returning arrays for all batches.
+
+        Returns
+        -------
+        y_pred : ndarray of shape (n,)
+            Binary predicted labels (0 or 1).
+        y_proba_pos : ndarray of shape (n,)
+            Predicted probability of the positive class.
+        y_true : ndarray of shape (n,)
+            Ground-truth labels collected from the loader (float32).
+        """
+        self._net.eval()
+        all_logits: list[torch.Tensor] = []
+        all_labels: list[torch.Tensor] = []
+
+        with torch.no_grad():
+            for xb, yb in loader:
+                all_logits.append(self._net(xb.to(self.device)).cpu())
+                all_labels.append(yb)
+
+        logits = torch.cat(all_logits).numpy()
+        y_proba_pos = torch.sigmoid(torch.tensor(logits)).numpy()
+        y_pred = (y_proba_pos >= 0.5).astype(int)
+        y_true = torch.cat(all_labels).numpy()
+        return y_pred, y_proba_pos, y_true
+
     def train(self, X: _Array, y: _Array, *, val_split: float = 0.1) -> None:
         """Fit the LSTM on windowed feature sequences.
 
@@ -295,6 +384,7 @@ def _run_epoch(
 ) -> float:
     net.train() if training else net.eval()
     total_loss = 0.0
+    n = 0
     with torch.set_grad_enabled(training):
         for xb, yb in loader:
             xb, yb = xb.to(device), yb.to(device)
@@ -306,7 +396,8 @@ def _run_epoch(
                 nn.utils.clip_grad_norm_(net.parameters(), 1.0)
                 optimizer.step()
             total_loss += loss.item() * len(xb)
-    return total_loss / len(loader.dataset)  # type: ignore[arg-type]
+            n += len(xb)
+    return total_loss / max(n, 1)
 
 
 def _run_eval(
@@ -318,6 +409,7 @@ def _run_eval(
     net.eval()
     total_loss = 0.0
     correct = 0
+    n = 0
     with torch.no_grad():
         for xb, yb in loader:
             xb, yb = xb.to(device), yb.to(device)
@@ -325,5 +417,7 @@ def _run_eval(
             total_loss += criterion(logits, yb).item() * len(xb)
             preds = (torch.sigmoid(logits) >= 0.5).float()
             correct += (preds == yb).sum().item()
-    n = len(loader.dataset)  # type: ignore[arg-type]
+            n += len(xb)
+    if n == 0:
+        return 0.0, 0.0
     return total_loss / n, correct / n
