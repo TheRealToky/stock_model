@@ -100,6 +100,15 @@ class MLDataLoader:
         limit:
             Optional ``LIMIT`` clause -- useful for sanity checks.
         """
+        glob = self._glob_path(
+            start=_to_iso_date(start) if start is not None else None,
+            end=_to_iso_date(end) if end is not None else None,
+            symbols=symbols,
+        )
+        if not glob:
+            logger.debug("No matching partitions found for symbols={} start={} end={}", symbols, start, end)
+            return pd.DataFrame(columns=list(columns) if columns else [])
+
         sql, params = self._build_select(
             symbols=symbols, start=start, end=end, columns=columns, limit=limit,
         )
@@ -247,9 +256,16 @@ class MLDataLoader:
                 f"{base}/date={d}/symbol={s}/*.parquet"
                 for d in date_dirs
                 for s in symbols
+                if (self.dataset_path / f"date={d}" / f"symbol={s}").is_dir()
             ]
         else:
-            paths = [f"{base}/date={d}/**/*.parquet" for d in date_dirs]
+            paths = [
+                f"{base}/date={d}/**/*.parquet"
+                for d in date_dirs
+                if (self.dataset_path / f"date={d}").is_dir()
+            ]
+        if not paths:
+            return ""
         # DuckDB accepts a list literal: read_parquet(['a.parquet','b.parquet'])
         return "[" + ", ".join(f"'{p}'" for p in paths) + "]"
 
