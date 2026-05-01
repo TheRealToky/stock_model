@@ -240,7 +240,7 @@ class MLDataLoader:
         """
         date_dirs = self._matching_date_dirs(start, end)
         base = self.dataset_path.as_posix()
-        if date_dirs is None or len(date_dirs) > 60:
+        if date_dirs is None:
             return f"{base}/**/*.parquet"
         if symbols and len(symbols) <= 20:
             paths = [
