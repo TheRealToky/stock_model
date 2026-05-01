@@ -8,6 +8,6 @@ Parquet datasets that downstream ML training can consume via
 
 from financials.etl_pipeline.pipeline import ETLPipeline
 from financials.etl_pipeline.config.etl_config import ETLConfig, load_config
-from financials.etl_pipeline.load.reader import MLDataLoader
+from financials.etl_pipeline.load.reader import MLDataLoader, StreamingSequenceDataset
 
-__all__ = ["ETLPipeline", "ETLConfig", "load_config", "MLDataLoader"]
+__all__ = ["ETLPipeline", "ETLConfig", "load_config", "MLDataLoader", "StreamingSequenceDataset"]
