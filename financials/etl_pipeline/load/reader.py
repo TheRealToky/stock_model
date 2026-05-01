@@ -22,7 +22,7 @@ Three convenience APIs:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Iterator, Sequence
+from typing import Any, Callable, Iterator, Sequence
 
 import duckdb
 import pandas as pd
@@ -333,6 +333,167 @@ class MLDataLoader:
             f"{where_sql} {limit_sql}".strip()
         )
         return sql, params
+
+
+# ---------------------------------------------------------------------------
+# Streaming dataset (IterableDataset) — avoids OOM on large Parquet stores
+# ---------------------------------------------------------------------------
+
+
+class StreamingSequenceDataset:
+    """PyTorch ``IterableDataset`` that streams sliding windows without OOM.
+
+    Loads one symbol at a time from the Parquet store, applies a fitted
+    scaler, builds overlapping windows of length *sequence_length*, and
+    emits them through an in-memory shuffle buffer so the DataLoader sees
+    reasonably shuffled batches without ever materialising the full dataset.
+
+    Parameters
+    ----------
+    loader:
+        A configured :class:`MLDataLoader` pointing at the feature store.
+    scaler:
+        A **fitted** sklearn-compatible scaler (e.g. ``StandardScaler``).
+        Applied to every symbol's feature matrix before windowing.
+    feature_columns:
+        Ordered list of feature column names (must exist in the Parquet
+        files).
+    target_fn:
+        Callable ``(df: pd.DataFrame) -> pd.Series`` that derives the
+        per-row target from the loaded symbol DataFrame.  The last row of
+        the resulting Series may be NaN (e.g. next-bar direction) and will
+        be dropped automatically.  Mutually exclusive with *target_column*.
+    target_column:
+        Name of a target column that is already stored in the Parquet
+        files.  Mutually exclusive with *target_fn*.
+    symbols:
+        Subset of tickers to iterate over.  ``None`` ⇒ all symbols.
+    start / end:
+        Inclusive date-range filter (pushed down to partition pruning).
+    sequence_length:
+        Number of timesteps per window.
+    stride:
+        Step size between consecutive windows (1 = fully overlapping).
+    shuffle_buffer:
+        Number of windows held in RAM at any time.  A random index is
+        popped each time a new window is added.  Set to 0 to disable
+        shuffling (useful for val/test loaders).
+    seed:
+        Base RNG seed.  Each DataLoader worker derives its own seed as
+        ``seed + worker_id`` so workers produce different orderings.
+    """
+
+    def __init__(
+        self,
+        loader: "MLDataLoader",
+        scaler: Any,
+        feature_columns: Sequence[str],
+        *,
+        target_fn: Callable[[pd.DataFrame], pd.Series] | None = None,
+        target_column: str | None = None,
+        symbols: Sequence[str] | None = None,
+        start: str | None = None,
+        end: str | None = None,
+        sequence_length: int = 60,
+        stride: int = 1,
+        shuffle_buffer: int = 50_000,
+        seed: int | None = None,
+    ) -> None:
+        if target_fn is None and target_column is None:
+            raise ValueError("Provide either target_fn or target_column.")
+        if target_fn is not None and target_column is not None:
+            raise ValueError("Provide only one of target_fn or target_column.")
+
+        self._loader = loader
+        self._scaler = scaler
+        self._feature_columns = list(feature_columns)
+        self._target_fn = target_fn
+        self._target_column = target_column
+        self._symbols = list(symbols) if symbols is not None else None
+        self._start = start
+        self._end = end
+        self._sequence_length = sequence_length
+        self._stride = stride
+        self._shuffle_buffer = max(int(shuffle_buffer), 0)
+        self._seed = seed
+
+    # IterableDataset protocol — import torch lazily so PyTorch stays optional.
+    def __iter__(self):
+        import numpy as np
+        import torch
+
+        try:
+            from torch.utils.data import get_worker_info
+            worker = get_worker_info()
+        except ImportError:
+            worker = None
+
+        target_symbols = self._symbols or self._loader.available_symbols()
+
+        # Shard symbols across DataLoader workers so each worker covers a
+        # distinct subset and windows are not duplicated.
+        if worker is not None and worker.num_workers > 1:
+            target_symbols = [
+                s for i, s in enumerate(target_symbols)
+                if i % worker.num_workers == worker.id
+            ]
+
+        seed = self._seed
+        if seed is not None and worker is not None:
+            seed = seed + worker.id
+        rng = np.random.default_rng(seed)
+
+        extra_cols: list[str] = [] if self._target_fn is not None else [self._target_column]  # type: ignore[list-item]
+        load_cols = list(dict.fromkeys(["timestamp", "symbol", *extra_cols, *self._feature_columns]))
+
+        buf_X: list[np.ndarray] = []
+        buf_y: list[float] = []
+
+        for sym in target_symbols:
+            df = (
+                self._loader.load_pandas(
+                    symbols=[sym],
+                    start=self._start,
+                    end=self._end,
+                    columns=load_cols,
+                )
+                .dropna(subset=self._feature_columns)
+                .reset_index(drop=True)
+            )
+
+            if self._target_fn is not None:
+                df = df.copy()
+                df["_target"] = self._target_fn(df)
+                df = df.dropna(subset=["_target"]).reset_index(drop=True)
+                target_arr = df["_target"].to_numpy(dtype="float32")
+            else:
+                df = df.dropna(subset=[self._target_column]).reset_index(drop=True)
+                target_arr = df[self._target_column].to_numpy(dtype="float32")
+
+            if len(df) <= self._sequence_length:
+                continue
+
+            # Scale the whole symbol at once (one scaler call vs. one per window).
+            feats = self._scaler.transform(df[self._feature_columns].values).astype("float32")
+
+            for i in range(self._sequence_length, len(df), self._stride):
+                buf_X.append(feats[i - self._sequence_length : i])
+                buf_y.append(float(target_arr[i - 1]))
+
+                if self._shuffle_buffer > 0 and len(buf_X) >= self._shuffle_buffer:
+                    idx = int(rng.integers(0, len(buf_X)))
+                    yield (
+                        torch.from_numpy(buf_X.pop(idx).copy()),
+                        torch.tensor(buf_y.pop(idx), dtype=torch.float32),
+                    )
+
+        # Drain the remaining buffer in a random permutation.
+        perm = rng.permutation(len(buf_X)).tolist()
+        for i in perm:
+            yield (
+                torch.from_numpy(buf_X[i].copy()),
+                torch.tensor(buf_y[i], dtype=torch.float32),
+            )
 
 
 # ---------------------------------------------------------------------------
