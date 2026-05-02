@@ -107,6 +107,13 @@ services:
       - pip_cache:/root/.cache/pip
     networks:
       - quantlab-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     depends_on:
       timescaledb:
         condition: service_healthy
