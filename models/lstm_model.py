@@ -1,11 +1,15 @@
 """LSTM classifier for binary next-bar direction prediction (1 = up, 0 = down).
 
-Expects 3-D input arrays of shape ``(n_samples, sequence_length, n_features)``
-produced from the Hive-partitioned feature store.  Use
-:meth:`~financials.etl_pipeline.load.reader.MLDataLoader.load_pandas` to pull
-a symbol's full history, add the next-bar direction target, and then build
-sliding windows -- see ``notebooks/06_lstm_training.ipynb`` for the full
-training pipeline.
+Two training entry points:
+
+  * :meth:`LSTMModel.train` — accepts an in-memory 3-D ``(n_samples,
+    sequence_length, n_features)`` array.  Convenient for small datasets.
+  * :meth:`LSTMModel.train_from_loader` — accepts a PyTorch
+    ``DataLoader``.  Pair it with
+    :class:`~financials.etl_pipeline.load.reader.StreamingSequenceDataset`
+    to train without ever materialising the full window tensor in RAM.
+
+See ``notebooks/06_lstm_training.ipynb`` for the streaming pipeline.
 """
 
 from __future__ import annotations
@@ -136,95 +140,6 @@ class LSTMModel(BaseModel):
     # BaseModel interface
     # ------------------------------------------------------------------
 
-    def train_from_loader(
-        self,
-        train_loader: "DataLoader",
-        val_loader: "DataLoader | None" = None,
-        *,
-        epochs: int | None = None,
-    ) -> None:
-        """Fit using pre-built DataLoaders (supports streaming IterableDatasets).
-
-        Parameters
-        ----------
-        train_loader:
-            DataLoader over the training set.  Works with both
-            ``TensorDataset`` and ``IterableDataset`` (e.g.
-            ``StreamingSequenceDataset``).
-        val_loader:
-            Optional DataLoader for per-epoch validation reporting.  When
-            omitted no validation metrics are recorded.
-        epochs:
-            Number of training epochs.  Defaults to ``self.epochs``.
-        """
-        n_epochs = epochs if epochs is not None else self.epochs
-        optimizer = torch.optim.Adam(self._net.parameters(), lr=self.learning_rate)
-        criterion = nn.BCEWithLogitsLoss()
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, mode="min", patience=5, factor=0.5
-        )
-
-        for epoch in range(1, n_epochs + 1):
-            train_loss = _run_epoch(
-                self._net, train_loader, criterion, optimizer, self.device, training=True
-            )
-            val_loss, val_acc = (
-                _run_eval(self._net, val_loader, criterion, self.device)
-                if val_loader is not None
-                else (float("nan"), float("nan"))
-            )
-            if val_loader is not None:
-                scheduler.step(val_loss)
-
-            self.train_history.append(
-                {
-                    "epoch": epoch,
-                    "train_loss": train_loss,
-                    "val_loss": val_loss,
-                    "val_acc": val_acc,
-                }
-            )
-            if epoch % 10 == 0 or epoch == 1:
-                logger.info(
-                    "[%s] epoch %d/%d  train_loss=%.4f  val_loss=%.4f  val_acc=%.4f",
-                    self.name,
-                    epoch,
-                    n_epochs,
-                    train_loss,
-                    val_loss,
-                    val_acc,
-                )
-
-    def predict_from_loader(
-        self,
-        loader: "DataLoader",
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Run inference over a DataLoader, returning arrays for all batches.
-
-        Returns
-        -------
-        y_pred : ndarray of shape (n,)
-            Binary predicted labels (0 or 1).
-        y_proba_pos : ndarray of shape (n,)
-            Predicted probability of the positive class.
-        y_true : ndarray of shape (n,)
-            Ground-truth labels collected from the loader (float32).
-        """
-        self._net.eval()
-        all_logits: list[torch.Tensor] = []
-        all_labels: list[torch.Tensor] = []
-
-        with torch.no_grad():
-            for xb, yb in loader:
-                all_logits.append(self._net(xb.to(self.device)).cpu())
-                all_labels.append(yb)
-
-        logits = torch.cat(all_logits).numpy()
-        y_proba_pos = torch.sigmoid(torch.tensor(logits)).numpy()
-        y_pred = (y_proba_pos >= 0.5).astype(int)
-        y_true = torch.cat(all_labels).numpy()
-        return y_pred, y_proba_pos, y_true
-
     def train(self, X: _Array, y: _Array, *, val_split: float = 0.1) -> None:
         """Fit the LSTM on windowed feature sequences.
 
@@ -250,19 +165,50 @@ class LSTMModel(BaseModel):
 
         train_loader = _make_loader(X_tr, y_tr, self.batch_size, shuffle=True)
         val_loader = _make_loader(X_val, y_val, self.batch_size, shuffle=False)
+        self.train_from_loader(train_loader, val_loader=val_loader)
 
+    def train_from_loader(
+        self,
+        train_loader: DataLoader,
+        val_loader: "DataLoader | None" = None,
+        *,
+        epochs: int | None = None,
+    ) -> None:
+        """Fit using pre-built DataLoaders.
+
+        Works with both map-style (``TensorDataset``) and streaming
+        (``IterableDataset``, e.g. :class:`StreamingSequenceDataset`)
+        datasets, so the full window tensor never has to fit in RAM.
+
+        Parameters
+        ----------
+        train_loader:
+            DataLoader over the training set.
+        val_loader:
+            Optional DataLoader for per-epoch validation reporting.
+            When omitted no validation metrics are recorded and the
+            LR scheduler does not step.
+        epochs:
+            Number of training epochs.  Defaults to ``self.epochs``.
+        """
+        n_epochs = epochs if epochs is not None else self.epochs
         optimizer = torch.optim.Adam(self._net.parameters(), lr=self.learning_rate)
         criterion = nn.BCEWithLogitsLoss()
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, mode="min", patience=5, factor=0.5
         )
 
-        for epoch in range(1, self.epochs + 1):
+        for epoch in range(1, n_epochs + 1):
             train_loss = _run_epoch(
                 self._net, train_loader, criterion, optimizer, self.device, training=True
             )
-            val_loss, val_acc = _run_eval(self._net, val_loader, criterion, self.device)
-            scheduler.step(val_loss)
+            if val_loader is not None:
+                val_loss, val_acc = _run_eval(
+                    self._net, val_loader, criterion, self.device
+                )
+                scheduler.step(val_loss)
+            else:
+                val_loss, val_acc = float("nan"), float("nan")
 
             self.train_history.append(
                 {
@@ -277,11 +223,40 @@ class LSTMModel(BaseModel):
                     "[%s] epoch %d/%d  train_loss=%.4f  val_loss=%.4f  val_acc=%.4f",
                     self.name,
                     epoch,
-                    self.epochs,
+                    n_epochs,
                     train_loss,
                     val_loss,
                     val_acc,
                 )
+
+    def predict_from_loader(
+        self, loader: DataLoader
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Run inference over a DataLoader without materialising X in RAM.
+
+        Returns
+        -------
+        y_pred : ndarray of shape (n,)
+            Binary predicted labels (0 or 1).
+        y_proba_pos : ndarray of shape (n,)
+            Predicted probability of the positive class.
+        y_true : ndarray of shape (n,)
+            Ground-truth labels collected from the loader.
+        """
+        self._net.eval()
+        all_logits: list[torch.Tensor] = []
+        all_labels: list[torch.Tensor] = []
+
+        with torch.no_grad():
+            for xb, yb in loader:
+                all_logits.append(self._net(xb.to(self.device)).cpu())
+                all_labels.append(yb)
+
+        logits = torch.cat(all_logits)
+        proba_pos = torch.sigmoid(logits).numpy()
+        y_pred = (proba_pos >= 0.5).astype(int)
+        y_true = torch.cat(all_labels).numpy()
+        return y_pred, proba_pos, y_true
 
     def predict(self, X: _Array) -> np.ndarray:
         """Return predicted class labels (0 or 1)."""
@@ -382,6 +357,8 @@ def _run_epoch(
     *,
     training: bool,
 ) -> float:
+    # Sample counts are accumulated from each batch so this works for
+    # both map-style and streaming (IterableDataset) loaders.
     net.train() if training else net.eval()
     total_loss = 0.0
     n = 0

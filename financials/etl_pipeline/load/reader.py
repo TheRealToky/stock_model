@@ -8,7 +8,7 @@ Built on DuckDB so that:
   * results can be materialised as pandas, Polars, or PyArrow without
     extra copies.
 
-Three convenience APIs:
+Four convenience APIs:
 
   * :meth:`MLDataLoader.load_pandas` — the simple "give me a dataframe"
     path, perfect for XGBoost / sklearn cross-sectional training.
@@ -16,7 +16,11 @@ Three convenience APIs:
     per symbol for LSTM / Transformer training.
   * :meth:`MLDataLoader.to_torch_dataset` — wraps :meth:`iter_sequences`
     in a ``torch.utils.data.Dataset`` (only imported lazily so PyTorch
-    is an optional dependency).
+    is an optional dependency).  Materialises the full set in RAM —
+    suitable only for small datasets.
+  * :class:`StreamingSequenceDataset` — a ``torch.utils.data.IterableDataset``
+    that streams windows symbol-by-symbol with a bounded shuffle buffer
+    and never holds the full training set in memory.
 """
 
 from __future__ import annotations
@@ -31,18 +35,66 @@ from financials.etl_pipeline.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
+# Inherit from torch.utils.data.IterableDataset when torch is available so
+# DataLoader workers receive proper get_worker_info() integration.  Falls
+# back to a no-op base when torch isn't installed (e.g. CPU-only ETL runs).
+try:  # pragma: no cover - import guard
+    from torch.utils.data import IterableDataset as _IterableDatasetBase
+except ImportError:  # pragma: no cover - torch optional
+    class _IterableDatasetBase:  # type: ignore[no-redef]
+        pass
+
 
 class MLDataLoader:
-    """Read features from the Parquet dataset with predicate pushdown."""
+    """Read features from the Parquet dataset with predicate pushdown.
 
-    def __init__(self, dataset_path: str | Path) -> None:
+    Parameters
+    ----------
+    dataset_path:
+        Root of the Hive-partitioned Parquet store.
+    memory_limit:
+        DuckDB ``memory_limit`` pragma.  Caps the buffer manager so a long
+        sweep of per-symbol queries (e.g. fitting a scaler over a 1-min
+        OHLCV store) cannot consume the container's RAM.  ``None`` keeps
+        DuckDB's default (80% of physical RAM).
+    threads:
+        DuckDB ``threads`` pragma.  More threads = more concurrent buffer
+        allocation per query; 4 is a reasonable trade-off for the
+        single-symbol queries the streaming pipeline issues.
+    """
+
+    def __init__(
+        self,
+        dataset_path: str | Path,
+        *,
+        memory_limit: str | None = "1GB",
+        threads: int = 4,
+    ) -> None:
         self.dataset_path = Path(dataset_path).resolve()
         if not self.dataset_path.is_dir():
             raise FileNotFoundError(f"Dataset path does not exist: {self.dataset_path}")
         # One persistent in-process connection. DuckDB is single-process by
         # default which is what we want for training scripts.
         self._con = duckdb.connect(":memory:")
-        self._con.execute("PRAGMA threads=8")
+        self._con.execute(f"PRAGMA threads={int(threads)}")
+        if memory_limit is not None:
+            # Without this DuckDB will retain parquet pages across queries up
+            # to ~80% of host RAM, which is fatal in a memory-bounded container.
+            self._con.execute(f"PRAGMA memory_limit='{memory_limit}'")
+        self._memory_limit = memory_limit
+        self._threads = int(threads)
+
+    def reset_cache(self) -> None:
+        """Drop and reopen the DuckDB connection to release cached pages.
+
+        Use between major phases of a training run (e.g. scaler fit → window
+        streaming) when the buffer manager has accumulated unused pages.
+        """
+        self._con.close()
+        self._con = duckdb.connect(":memory:")
+        self._con.execute(f"PRAGMA threads={self._threads}")
+        if self._memory_limit is not None:
+            self._con.execute(f"PRAGMA memory_limit='{self._memory_limit}'")
 
     # ------------------------------------------------------------------
     # Discovery
@@ -336,17 +388,32 @@ class MLDataLoader:
 
 
 # ---------------------------------------------------------------------------
-# Streaming dataset (IterableDataset) — avoids OOM on large Parquet stores
+# Streaming dataset (IterableDataset) — never materialises the full set
 # ---------------------------------------------------------------------------
 
 
-class StreamingSequenceDataset:
-    """PyTorch ``IterableDataset`` that streams sliding windows without OOM.
+class StreamingSequenceDataset(_IterableDatasetBase):
+    """Streaming PyTorch ``IterableDataset`` for sliding-window training.
 
-    Loads one symbol at a time from the Parquet store, applies a fitted
-    scaler, builds overlapping windows of length *sequence_length*, and
-    emits them through an in-memory shuffle buffer so the DataLoader sees
-    reasonably shuffled batches without ever materialising the full dataset.
+    Designed for the case where the *full* set of windows would not fit
+    in RAM.  For each symbol in turn the dataset:
+
+      1. Loads only that symbol's rows via DuckDB (``date`` / ``symbol``
+         partition pruning so we never read more than requested).
+      2. Applies the fitted scaler in one ``transform`` call.
+      3. Yields sliding windows of length ``sequence_length``.
+
+    Memory budget per worker (peak):
+
+      * ``shuffle_buffer == 0`` (validation / test):
+        one symbol's rows + one window in flight.
+      * ``shuffle_buffer == N`` (training):
+        one symbol's rows + at most ``N`` windows in a reservoir.
+        Each window is *copied* on insertion so the per-symbol ``feats``
+        array can be released between symbols.
+
+    Time-series ordering is preserved *within* each symbol; symbols are
+    processed sequentially so a window never spans across tickers.
 
     Parameters
     ----------
@@ -356,31 +423,32 @@ class StreamingSequenceDataset:
         A **fitted** sklearn-compatible scaler (e.g. ``StandardScaler``).
         Applied to every symbol's feature matrix before windowing.
     feature_columns:
-        Ordered list of feature column names (must exist in the Parquet
-        files).
+        Ordered list of feature column names that exist in the Parquet
+        files.  Order must match the scaler's training order.
     target_fn:
-        Callable ``(df: pd.DataFrame) -> pd.Series`` that derives the
-        per-row target from the loaded symbol DataFrame.  The last row of
-        the resulting Series may be NaN (e.g. next-bar direction) and will
-        be dropped automatically.  Mutually exclusive with *target_column*.
+        Callable ``(df: pd.DataFrame) -> pd.Series`` deriving the target
+        from a symbol's DataFrame (e.g. next-bar direction).  Rows where
+        the target is NaN are dropped.  Mutually exclusive with
+        ``target_column``.
     target_column:
-        Name of a target column that is already stored in the Parquet
-        files.  Mutually exclusive with *target_fn*.
+        Name of a target column already present in the Parquet files.
+        Mutually exclusive with ``target_fn``.
     symbols:
         Subset of tickers to iterate over.  ``None`` ⇒ all symbols.
     start / end:
         Inclusive date-range filter (pushed down to partition pruning).
     sequence_length:
-        Number of timesteps per window.
+        Number of bars per window.
     stride:
-        Step size between consecutive windows (1 = fully overlapping).
+        Step between consecutive windows (1 = fully overlapping).
     shuffle_buffer:
-        Number of windows held in RAM at any time.  A random index is
-        popped each time a new window is added.  Set to 0 to disable
-        shuffling (useful for val/test loaders).
+        Reservoir size in windows.  ``0`` disables shuffling and yields
+        in time order — required for validation / test loaders.
     seed:
         Base RNG seed.  Each DataLoader worker derives its own seed as
         ``seed + worker_id`` so workers produce different orderings.
+        Pass ``None`` to draw from system entropy (different shuffle
+        every epoch).
     """
 
     def __init__(
@@ -392,17 +460,16 @@ class StreamingSequenceDataset:
         target_fn: Callable[[pd.DataFrame], pd.Series] | None = None,
         target_column: str | None = None,
         symbols: Sequence[str] | None = None,
-        start: str | None = None,
-        end: str | None = None,
+        start: str | pd.Timestamp | None = None,
+        end: str | pd.Timestamp | None = None,
         sequence_length: int = 60,
         stride: int = 1,
-        shuffle_buffer: int = 50_000,
+        shuffle_buffer: int = 0,
         seed: int | None = None,
     ) -> None:
-        if target_fn is None and target_column is None:
-            raise ValueError("Provide either target_fn or target_column.")
-        if target_fn is not None and target_column is not None:
-            raise ValueError("Provide only one of target_fn or target_column.")
+        super().__init__()
+        if (target_fn is None) == (target_column is None):
+            raise ValueError("Provide exactly one of target_fn or target_column.")
 
         self._loader = loader
         self._scaler = scaler
@@ -412,12 +479,13 @@ class StreamingSequenceDataset:
         self._symbols = list(symbols) if symbols is not None else None
         self._start = start
         self._end = end
-        self._sequence_length = sequence_length
-        self._stride = stride
+        self._sequence_length = int(sequence_length)
+        self._stride = max(int(stride), 1)
         self._shuffle_buffer = max(int(shuffle_buffer), 0)
         self._seed = seed
 
-    # IterableDataset protocol — import torch lazily so PyTorch stays optional.
+    # IterableDataset protocol — torch is imported lazily so this module
+    # remains importable in CPU-only ETL contexts.
     def __iter__(self):
         import numpy as np
         import torch
@@ -425,13 +493,13 @@ class StreamingSequenceDataset:
         try:
             from torch.utils.data import get_worker_info
             worker = get_worker_info()
-        except ImportError:
+        except ImportError:  # pragma: no cover - torch optional
             worker = None
 
         target_symbols = self._symbols or self._loader.available_symbols()
 
-        # Shard symbols across DataLoader workers so each worker covers a
-        # distinct subset and windows are not duplicated.
+        # Shard symbols across DataLoader workers so windows are never
+        # duplicated.  Each symbol is owned by exactly one worker.
         if worker is not None and worker.num_workers > 1:
             target_symbols = [
                 s for i, s in enumerate(target_symbols)
@@ -443,10 +511,15 @@ class StreamingSequenceDataset:
             seed = seed + worker.id
         rng = np.random.default_rng(seed)
 
-        extra_cols: list[str] = [] if self._target_fn is not None else [self._target_column]  # type: ignore[list-item]
-        load_cols = list(dict.fromkeys(["timestamp", "symbol", *extra_cols, *self._feature_columns]))
+        if self._target_fn is not None:
+            extra_cols: list[str] = []
+        else:
+            extra_cols = [self._target_column]  # type: ignore[list-item]
+        load_cols = list(dict.fromkeys(
+            ["timestamp", "symbol", *extra_cols, *self._feature_columns]
+        ))
 
-        buf_X: list[np.ndarray] = []
+        buf_X: list["np.ndarray"] = []
         buf_y: list[float] = []
 
         for sym in target_symbols:
@@ -473,26 +546,50 @@ class StreamingSequenceDataset:
             if len(df) <= self._sequence_length:
                 continue
 
-            # Scale the whole symbol at once (one scaler call vs. one per window).
-            feats = self._scaler.transform(df[self._feature_columns].values).astype("float32")
+            # Scale the symbol once; the result is bounded by one ticker's
+            # row count, not the full training set.
+            feats = self._scaler.transform(
+                df[self._feature_columns].values
+            ).astype("float32", copy=False)
 
             for i in range(self._sequence_length, len(df), self._stride):
-                buf_X.append(feats[i - self._sequence_length : i])
-                buf_y.append(float(target_arr[i - 1]))
+                # .copy() detaches the window from `feats` so it can be
+                # garbage-collected as soon as we move to the next symbol.
+                # Without this, every window would be a view holding the
+                # whole symbol's feature matrix alive in memory.
+                window = feats[i - self._sequence_length : i].copy()
+                target = float(target_arr[i - 1])
 
-                if self._shuffle_buffer > 0 and len(buf_X) >= self._shuffle_buffer:
-                    idx = int(rng.integers(0, len(buf_X)))
+                if self._shuffle_buffer == 0:
                     yield (
-                        torch.from_numpy(buf_X.pop(idx).copy()),
-                        torch.tensor(buf_y.pop(idx), dtype=torch.float32),
+                        torch.from_numpy(window),
+                        torch.tensor(target, dtype=torch.float32),
+                    )
+                    continue
+
+                buf_X.append(window)
+                buf_y.append(target)
+                if len(buf_X) >= self._shuffle_buffer:
+                    # Swap-with-tail-and-pop keeps each emit O(1).
+                    idx = int(rng.integers(0, len(buf_X)))
+                    buf_X[idx], buf_X[-1] = buf_X[-1], buf_X[idx]
+                    buf_y[idx], buf_y[-1] = buf_y[-1], buf_y[idx]
+                    yield (
+                        torch.from_numpy(buf_X.pop()),
+                        torch.tensor(buf_y.pop(), dtype=torch.float32),
                     )
 
-        # Drain the remaining buffer in a random permutation.
-        perm = rng.permutation(len(buf_X)).tolist()
-        for i in perm:
+            # Release per-symbol arrays before the next iteration.
+            del feats, target_arr, df
+
+        # Drain the reservoir in random order.  Bounded by shuffle_buffer.
+        while buf_X:
+            idx = int(rng.integers(0, len(buf_X)))
+            buf_X[idx], buf_X[-1] = buf_X[-1], buf_X[idx]
+            buf_y[idx], buf_y[-1] = buf_y[-1], buf_y[idx]
             yield (
-                torch.from_numpy(buf_X[i].copy()),
-                torch.tensor(buf_y[i], dtype=torch.float32),
+                torch.from_numpy(buf_X.pop()),
+                torch.tensor(buf_y.pop(), dtype=torch.float32),
             )
 
 
