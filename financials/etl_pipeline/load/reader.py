@@ -45,6 +45,15 @@ except ImportError:  # pragma: no cover - torch optional
         pass
 
 
+def _short_sql(sql: str, limit: int = 200) -> str:
+    sql = " ".join(sql.split())
+    if len(sql) <= limit:
+        return sql
+    head = limit * 2 // 3
+    tail = limit - head - 5
+    return f"{sql[:head]} ... {sql[-tail:]}"
+
+
 class MLDataLoader:
     """Read features from the Parquet dataset with predicate pushdown.
 
@@ -164,7 +173,7 @@ class MLDataLoader:
         sql, params = self._build_select(
             symbols=symbols, start=start, end=end, columns=columns, limit=limit,
         )
-        logger.debug("DuckDB query: {}", sql)
+        logger.debug("DuckDB query: {}", _short_sql(sql))
         df = self._con.execute(sql, params).fetchdf()
 
         if "timestamp" in df.columns:
