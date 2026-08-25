@@ -43,3 +43,37 @@ COST_GRID = [
 
 # Convenience: the lab default used for headline net-of-cost numbers.
 DEFAULT_COST = (0.001, 0.0005)
+
+# ---------------------------------------------------------------------------
+# Multi-horizon sweep.
+#
+# The 1-min study concluded there is no reliable edge at that frequency, and
+# the reason was mostly friction: at ~11 trades/day, a 30 bp round trip costs
+# more than the signal is worth. Rather than assume a coarser bar fixes that,
+# these are the horizons the harness evaluates identically so the data can say.
+#
+# `bars` is the label horizon *in bars of that interval*, chosen so every row
+# holds for roughly the same wall-clock time (~one session), which keeps the
+# comparison about frequency rather than about holding period.
+# ---------------------------------------------------------------------------
+HORIZONS: list[dict] = [
+    {"interval": "1min",  "bars": 390, "periods_per_year": 98_280},
+    {"interval": "5min",  "bars": 78,  "periods_per_year": 19_656},
+    {"interval": "15min", "bars": 26,  "periods_per_year": 6_552},
+    {"interval": "1h",    "bars": 7,   "periods_per_year": 1_638},
+    {"interval": "1d",    "bars": 5,   "periods_per_year": 252},
+]
+
+# Triple-barrier defaults. Barriers are multiples of local (EWM) volatility,
+# so a label means the same thing across regimes and across intervals.
+TB_PROFIT_TAKE = 2.0
+TB_STOP_LOSS = 2.0
+TB_VOL_SPAN = 100
+
+# Purged CV. The embargo is a fraction of the sample dropped after each test
+# block; serial correlation makes the bars just after a fold nearly the same
+# observation even when their labels do not formally overlap.
+CV_N_SPLITS = 6
+CV_EMBARGO_PCT = 0.01
+CPCV_N_GROUPS = 6
+CPCV_N_TEST_GROUPS = 2

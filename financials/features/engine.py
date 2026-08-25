@@ -8,7 +8,7 @@ stored, and retrieved with a single method call.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 import pandas as pd
 from loguru import logger
@@ -16,7 +16,9 @@ from sqlalchemy import text
 
 from financials.config.settings import settings
 from financials.database.connection import get_engine, get_session
-from financials.data_pipeline.loader import DataLoader
+
+if TYPE_CHECKING:  # pragma: no cover - static analysers only
+    from financials.data_pipeline.loader import DataLoader  # noqa: F401
 from financials.features.registry import FEATURE_REGISTRY, get_feature_func, list_features
 
 
@@ -26,12 +28,29 @@ class FeatureEngine:
     Parameters
     ----------
     loader:
-        An optional :class:`DataLoader` instance.  When ``None`` a new one is
-        created automatically.
+        An optional :class:`DataLoader` instance.  When ``None`` one is created
+        on first use -- not at construction.  :meth:`compute_features` works on
+        an in-memory DataFrame and needs no database at all, so building a
+        DB-backed loader (and pulling in a market-data client with it) just to
+        compute an RSI would be a needless dependency.  Only the DB-backed
+        methods trigger it.
     """
 
-    def __init__(self, loader: DataLoader | None = None) -> None:
-        self.loader = loader or DataLoader()
+    def __init__(self, loader: "DataLoader | None" = None) -> None:
+        self._loader = loader
+
+    @property
+    def loader(self) -> "DataLoader":
+        """The DB-backed loader, constructed on first access."""
+        if self._loader is None:
+            from financials.data_pipeline.loader import DataLoader as _DataLoader
+
+            self._loader = _DataLoader()
+        return self._loader
+
+    @loader.setter
+    def loader(self, value: "DataLoader | None") -> None:
+        self._loader = value
 
     # ------------------------------------------------------------------
     # Core computation

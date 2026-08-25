@@ -1,0 +1,61 @@
+====================================================================================================
+Multi-horizon sweep  ticker=AAPL  window=2021-01-04..2025-04-30
+model=HistGradientBoosting  seed=42  barriers=+/-2.0sigma  cv=6-fold purged, embargo 1%
+====================================================================================================
+
+[1min]  bars=406,535  labelled=405,438  effective_N=68,405 (16.9% of raw)
+  label balance=0.502  median hold=4 bars  purged-CV AUC=0.5027  folds=6  (25.7s)
+  best threshold=0.58  strat_sharpe=-8.812  bh_sharpe=+0.406  edge=-9.218  trades/day=0.68  beats_bh=False
+  PBO across thresholds=0.000  (0.5 = threshold choice carries no information)
+
+[5min]  bars=81,435  labelled=80,338  effective_N=13,875 (17.3% of raw)
+  label balance=0.513  median hold=5 bars  purged-CV AUC=0.5066  folds=6  (23.2s)
+  best threshold=0.58  strat_sharpe=-7.768  bh_sharpe=+0.424  edge=-8.192  trades/day=0.81  beats_bh=False
+  PBO across thresholds=0.000  (0.5 = threshold choice carries no information)
+
+[15min]  bars=27,226  labelled=26,129  effective_N=5,350 (20.5% of raw)
+  label balance=0.519  median hold=4 bars  purged-CV AUC=0.4985  folds=6  (14.4s)
+  best threshold=0.50  strat_sharpe=-4.190  bh_sharpe=+0.417  edge=-4.607  trades/day=1.54  beats_bh=False
+  PBO across thresholds=0.000  (0.5 = threshold choice carries no information)
+
+[1h]  bars=7,381  labelled=6,284  effective_N=2,003 (31.9% of raw)
+  label balance=0.529  median hold=2 bars  purged-CV AUC=0.4950  folds=6  (13.0s)
+  best threshold=0.50  strat_sharpe=-2.629  bh_sharpe=+0.428  edge=-3.056  trades/day=0.77  beats_bh=False
+  PBO across thresholds=0.386  (0.5 = threshold choice carries no information)
+
+[1d]  bars=1,072  labelled=1,046  effective_N=232 (22.2% of raw)
+  label balance=0.554  median hold=4 bars  purged-CV AUC=0.4783  folds=6  (12.1s)
+  best threshold=0.55  strat_sharpe=+0.345  bh_sharpe=+0.369  edge=-0.024  trades/day=0.10  beats_bh=False
+  PBO across thresholds=0.929  (0.5 = threshold choice carries no information)
+
+====================================================================================================
+SUMMARY (sealed test window untouched)
+====================================================================================================
+     label  strat_sharpe  bh_sharpe  sharpe_edge  strat_max_drawdown  strat_trades_per_day  exposure      auc      pbo  beats_bh
+ 1min@0.50    -61.911340   0.406335   -62.317676            1.000000             22.449113  0.741795 0.502734 0.000000     False
+ 1min@0.52    -40.446546   0.406335   -40.852882            1.000000              7.711485  0.049448 0.502734 0.000000     False
+ 1min@0.55    -13.780161   0.406335   -14.186497            0.990746              1.520075  0.010672 0.502734 0.000000     False
+ 1min@0.58     -8.811659   0.406335    -9.217994            0.867184              0.678805  0.003779 0.502734 0.000000     False
+ 5min@0.50    -13.592183   0.423907   -14.016090            0.999999              4.512605  0.746185 0.506554 0.000000     False
+ 5min@0.52    -22.263316   0.423907   -22.687223            1.000000              4.667600  0.280253 0.506554 0.000000     False
+ 5min@0.55    -12.609915   0.423907   -13.033822            0.993428              1.666667  0.056275 0.506554 0.000000     False
+ 5min@0.58     -7.767786   0.423907    -8.191693            0.914996              0.811391  0.024397 0.506554 0.000000     False
+15min@0.50     -4.190217   0.417197    -4.607414            0.986594              1.535514  0.775575 0.498450 0.000000     False
+15min@0.52     -8.450384   0.417197    -8.867581            0.995699              1.797196  0.278044 0.498450 0.000000     False
+15min@0.55     -6.358409   0.417197    -6.775606            0.936247              0.957944  0.101841 0.498450 0.000000     False
+15min@0.58     -4.544718   0.417197    -4.961915            0.762253              0.505607  0.049332 0.498450 0.000000     False
+   1h@0.50     -2.628615   0.427867    -3.056482            0.906060              0.773070  0.605506 0.494969 0.385714     False
+   1h@0.52     -2.925808   0.427867    -3.353675            0.913114              0.786252  0.528167 0.494969 0.385714     False
+   1h@0.55     -3.414720   0.427867    -3.842587            0.921975              0.762712  0.405952 0.494969 0.385714     False
+   1h@0.58     -3.310311   0.427867    -3.738178            0.883047              0.630885  0.298854 0.494969 0.385714     False
+   1d@0.50      0.337987   0.369405    -0.031418            0.228120              0.096558  0.521033 0.478256 0.928571     False
+   1d@0.52      0.322932   0.369405    -0.046474            0.239631              0.099426  0.495220 0.478256 0.928571     False
+   1d@0.55      0.345085   0.369405    -0.024321            0.180830              0.097514  0.457935 0.478256 0.928571     False
+   1d@0.58      0.234387   0.369405    -0.135018            0.222725              0.092734  0.430210 0.478256 0.928571     False
+
+Best configuration : 1d@0.55  sharpe=+0.345
+Trials searched    : 20 (horizon x threshold)
+Deflated Sharpe    : 0.0104   (DOES NOT survive the multiple-testing discount)
+Any config beating buy&hold: 0 / 20
+
+Wrote research\outputs\p7_multihorizon.csv
