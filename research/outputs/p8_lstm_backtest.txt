@@ -1,0 +1,82 @@
+============================================================================================================
+LSTM net-of-cost backtest  checkpoint=models/saved/lstm_direction_v2.pt
+window=2025-01-01..2026-03-31  symbols=AAPL,MSFT,NVDA,AMZN,META,TSLA,AMD,NFLX  seq_len=390  stride=15  threshold=0.5
+============================================================================================================
+
+[AAPL] bars=120,596  decisions=8,013  mean P(up)=0.4839  (7.2s)
+    frictionless      ( 0.0 bp)  strat_sharpe=    1.363   bh= 0.082   edge=    1.281   maxDD=14.44%   trades/day= 3.36   beats_bh=True
+    ultra_low_1bp     ( 2.0 bp)  strat_sharpe=    0.455   bh= 0.082   edge=    0.373   maxDD=15.95%   trades/day= 3.36   beats_bh=True
+    low_2bp           ( 4.0 bp)  strat_sharpe=   -0.452   bh= 0.082   edge=   -0.534   maxDD=18.25%   trades/day= 3.36   beats_bh=False
+    mid_5bp           (10.0 bp)  strat_sharpe=   -3.159   bh= 0.081   edge=   -3.240   maxDD=51.67%   trades/day= 3.36   beats_bh=False
+    high_10bp         (20.0 bp)  strat_sharpe=   -7.545   bh= 0.080   edge=   -7.625   maxDD=82.86%   trades/day= 3.36   beats_bh=False
+    lab_default_15bp  (30.0 bp)  strat_sharpe=  -11.662   bh= 0.078   edge=  -11.740   maxDD=93.95%   trades/day= 3.36   beats_bh=False
+
+[MSFT] bars=120,592  decisions=8,013  mean P(up)=0.4722  (7.1s)
+    frictionless      ( 0.0 bp)  strat_sharpe=   -0.222   bh=-0.395   edge=    0.173   maxDD=11.70%   trades/day= 2.10   beats_bh=True
+    ultra_low_1bp     ( 2.0 bp)  strat_sharpe=   -1.127   bh=-0.395   edge=   -0.732   maxDD=17.44%   trades/day= 2.10   beats_bh=False
+    low_2bp           ( 4.0 bp)  strat_sharpe=   -2.029   bh=-0.395   edge=   -1.634   maxDD=27.35%   trades/day= 2.10   beats_bh=False
+    mid_5bp           (10.0 bp)  strat_sharpe=   -4.703   bh=-0.396   edge=   -4.307   maxDD=50.49%   trades/day= 2.10   beats_bh=False
+    high_10bp         (20.0 bp)  strat_sharpe=   -8.939   bh=-0.397   edge=   -8.541   maxDD=73.88%   trades/day= 2.10   beats_bh=False
+    lab_default_15bp  (30.0 bp)  strat_sharpe=  -12.749   bh=-0.399   edge=  -12.350   maxDD=86.28%   trades/day= 2.10   beats_bh=False
+
+[NVDA] bars=120,596  decisions=8,013  mean P(up)=0.5280  (7.9s)
+    frictionless      ( 0.0 bp)  strat_sharpe=   -0.016   bh= 0.577   edge=   -0.593   maxDD=43.95%   trades/day= 4.36   beats_bh=False
+    ultra_low_1bp     ( 2.0 bp)  strat_sharpe=   -0.595   bh= 0.577   edge=   -1.172   maxDD=47.46%   trades/day= 4.36   beats_bh=False
+    low_2bp           ( 4.0 bp)  strat_sharpe=   -1.173   bh= 0.577   edge=   -1.749   maxDD=51.46%   trades/day= 4.36   beats_bh=False
+    mid_5bp           (10.0 bp)  strat_sharpe=   -2.903   bh= 0.576   edge=   -3.479   maxDD=77.78%   trades/day= 4.36   beats_bh=False
+    high_10bp         (20.0 bp)  strat_sharpe=   -5.756   bh= 0.575   edge=   -6.331   maxDD=94.17%   trades/day= 4.36   beats_bh=False
+    lab_default_15bp  (30.0 bp)  strat_sharpe=   -8.547   bh= 0.574   edge=   -9.121   maxDD=98.48%   trades/day= 4.36   beats_bh=False
+
+[AMZN] bars=120,593  decisions=8,013  mean P(up)=0.4831  (7.7s)
+    frictionless      ( 0.0 bp)  strat_sharpe=    0.152   bh=-0.066   edge=    0.218   maxDD=14.02%   trades/day= 3.82   beats_bh=True
+    ultra_low_1bp     ( 2.0 bp)  strat_sharpe=   -0.821   bh=-0.066   edge=   -0.755   maxDD=25.95%   trades/day= 3.82   beats_bh=False
+    low_2bp           ( 4.0 bp)  strat_sharpe=   -1.794   bh=-0.067   edge=   -1.727   maxDD=37.37%   trades/day= 3.82   beats_bh=False
+    mid_5bp           (10.0 bp)  strat_sharpe=   -4.692   bh=-0.067   edge=   -4.625   maxDD=69.03%   trades/day= 3.82   beats_bh=False
+    high_10bp         (20.0 bp)  strat_sharpe=   -9.379   bh=-0.068   edge=   -9.311   maxDD=90.47%   trades/day= 3.82   beats_bh=False
+    lab_default_15bp  (30.0 bp)  strat_sharpe=  -13.767   bh=-0.069   edge=  -13.698   maxDD=97.07%   trades/day= 3.82   beats_bh=False
+
+[META] bars=120,588  decisions=8,013  mean P(up)=0.4773  (7.2s)
+    frictionless      ( 0.0 bp)  strat_sharpe=   -0.517   bh= 0.028   edge=   -0.545   maxDD=31.87%   trades/day= 3.83   beats_bh=False
+    ultra_low_1bp     ( 2.0 bp)  strat_sharpe=   -1.192   bh= 0.027   edge=   -1.219   maxDD=39.93%   trades/day= 3.83   beats_bh=False
+    low_2bp           ( 4.0 bp)  strat_sharpe=   -1.866   bh= 0.027   edge=   -1.893   maxDD=51.92%   trades/day= 3.83   beats_bh=False
+    mid_5bp           (10.0 bp)  strat_sharpe=   -3.880   bh= 0.027   edge=   -3.907   maxDD=76.04%   trades/day= 3.83   beats_bh=False
+    high_10bp         (20.0 bp)  strat_sharpe=   -7.183   bh= 0.026   edge=   -7.209   maxDD=92.65%   trades/day= 3.83   beats_bh=False
+    lab_default_15bp  (30.0 bp)  strat_sharpe=  -10.374   bh= 0.025   edge=  -10.399   maxDD=97.75%   trades/day= 3.83   beats_bh=False
+
+[TSLA] bars=120,574  decisions=8,012  mean P(up)=0.4876  (7.2s)
+    frictionless      ( 0.0 bp)  strat_sharpe=    0.438   bh= 0.140   edge=    0.297   maxDD=33.12%   trades/day= 5.28   beats_bh=True
+    ultra_low_1bp     ( 2.0 bp)  strat_sharpe=   -0.263   bh= 0.140   edge=   -0.403   maxDD=37.61%   trades/day= 5.28   beats_bh=False
+    low_2bp           ( 4.0 bp)  strat_sharpe=   -0.963   bh= 0.140   edge=   -1.103   maxDD=43.45%   trades/day= 5.28   beats_bh=False
+    mid_5bp           (10.0 bp)  strat_sharpe=   -3.058   bh= 0.139   edge=   -3.197   maxDD=78.77%   trades/day= 5.28   beats_bh=False
+    high_10bp         (20.0 bp)  strat_sharpe=   -6.506   bh= 0.139   edge=   -6.645   maxDD=95.85%   trades/day= 5.28   beats_bh=False
+    lab_default_15bp  (30.0 bp)  strat_sharpe=   -9.865   bh= 0.138   edge=  -10.003   maxDD=99.19%   trades/day= 5.28   beats_bh=False
+
+[AMD] bars=120,586  decisions=8,013  mean P(up)=0.4865  (7.6s)
+    frictionless      ( 0.0 bp)  strat_sharpe=   -0.106   bh= 0.892   edge=   -0.998   maxDD=34.41%   trades/day= 5.26   beats_bh=False
+    ultra_low_1bp     ( 2.0 bp)  strat_sharpe=   -0.902   bh= 0.892   edge=   -1.794   maxDD=42.39%   trades/day= 5.26   beats_bh=False
+    low_2bp           ( 4.0 bp)  strat_sharpe=   -1.697   bh= 0.892   edge=   -2.589   maxDD=56.41%   trades/day= 5.26   beats_bh=False
+    mid_5bp           (10.0 bp)  strat_sharpe=   -4.076   bh= 0.892   edge=   -4.968   maxDD=82.66%   trades/day= 5.26   beats_bh=False
+    high_10bp         (20.0 bp)  strat_sharpe=   -7.983   bh= 0.891   edge=   -8.875   maxDD=96.52%   trades/day= 5.26   beats_bh=False
+    lab_default_15bp  (30.0 bp)  strat_sharpe=  -11.765   bh= 0.891   edge=  -12.655   maxDD=99.32%   trades/day= 5.26   beats_bh=False
+
+[NFLX] bars=120,103  decisions=7,980  mean P(up)=0.4868  (7.8s)
+    frictionless      ( 0.0 bp)  strat_sharpe=    0.324   bh= 0.235   edge=    0.089   maxDD=21.83%   trades/day= 5.24   beats_bh=True
+    ultra_low_1bp     ( 2.0 bp)  strat_sharpe=   -0.736   bh= 0.234   edge=   -0.970   maxDD=40.62%   trades/day= 5.24   beats_bh=False
+    low_2bp           ( 4.0 bp)  strat_sharpe=   -1.794   bh= 0.234   edge=   -2.029   maxDD=54.93%   trades/day= 5.24   beats_bh=False
+    mid_5bp           (10.0 bp)  strat_sharpe=   -4.950   bh= 0.234   edge=   -5.183   maxDD=80.97%   trades/day= 5.24   beats_bh=False
+    high_10bp         (20.0 bp)  strat_sharpe=  -10.069   bh= 0.232   edge=  -10.302   maxDD=95.96%   trades/day= 5.24   beats_bh=False
+    lab_default_15bp  (30.0 bp)  strat_sharpe=  -14.901   bh= 0.231   edge=  -15.132   maxDD=99.17%   trades/day= 5.24   beats_bh=False
+
+============================================================================================================
+SUMMARY - mean across symbols, by cost point
+============================================================================================================
+      cost_label  round_trip_bps  strat_sharpe  bh_sharpe  sharpe_edge  max_drawdown  trades_per_day  exposure  beats
+    frictionless             0.0      0.176915   0.186706    -0.009791      0.256658        4.155547  0.289821      5
+   ultra_low_1bp             2.0     -0.647504   0.186501    -0.834005      0.334187        4.155547  0.289821      1
+         low_2bp             4.0     -1.471112   0.186296    -1.657408      0.426425        4.155547  0.289821      0
+         mid_5bp            10.0     -3.927564   0.185681    -4.113245      0.709260        4.155547  0.289821      0
+       high_10bp            20.0     -7.920176   0.184657    -8.104833      0.902969        4.155547  0.289821      0
+lab_default_15bp            30.0    -11.703609   0.183633   -11.887242      0.964012        4.155547  0.289821      0
+
+Configurations beating buy & hold: 6 / 48
+Wrote research\outputs\p8_lstm_backtest.csv

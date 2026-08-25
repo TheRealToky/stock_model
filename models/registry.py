@@ -3,21 +3,23 @@ manages the corresponding serialised model files on disk."""
 
 from __future__ import annotations
 
-import json
+import hashlib
 import logging
 import os
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import joblib
 import pandas as pd
 from sqlalchemy import (
-    Column,
+    Boolean,
     DateTime,
     Integer,
     String,
     Text,
-    text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -42,15 +44,25 @@ class ModelRegistryRow(_Base):
     """SQLAlchemy ORM mapping for the ``model_registry`` table."""
 
     __tablename__ = "model_registry"
+    __table_args__ = (
+        UniqueConstraint("model_name", "version", name="ix_model_registry_name_version"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    model_name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    model_name: Mapped[str] = mapped_column(String(255), nullable=False)
     model_type: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     hyperparameters: Mapped[dict] = mapped_column(JSONB, nullable=True)
     training_dataset_info: Mapped[dict] = mapped_column(JSONB, nullable=True)
     performance_metrics: Mapped[dict] = mapped_column(JSONB, nullable=True)
     model_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    # Versioning (migration 002). register() inserts a new row per run
+    # instead of overwriting, so experiment history survives a retrain.
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    run_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    artifact_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    scaler_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    is_latest: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -82,11 +94,23 @@ def _ensure_class_map() -> None:
     """Lazily populate ``_MODEL_CLASS_MAP`` so we avoid circular imports."""
     if _MODEL_CLASS_MAP:
         return
-    from models.xgboost_model import XGBoostModel
     from models.random_forest_model import RandomForestModel
+    from models.xgboost_model import XGBoostModel
 
     _MODEL_CLASS_MAP["xgboost"] = XGBoostModel
     _MODEL_CLASS_MAP["random_forest"] = RandomForestModel
+
+    # LSTMModel needs torch, which is optional outside the GPU container.
+    # Register it when available rather than making the whole registry
+    # unimportable -- but without this, load_model() on any LSTM raised
+    # "Unknown model_type 'lstm'", so the neural models could be written to
+    # the registry and never read back.
+    try:
+        from models.lstm_model import LSTMModel
+
+        _MODEL_CLASS_MAP["lstm"] = LSTMModel
+    except ImportError:  # pragma: no cover - torch not installed
+        logger.debug("torch unavailable; 'lstm' not registered in the class map.")
 
 
 class ModelRegistry:
@@ -123,63 +147,78 @@ class ModelRegistry:
         training_info: dict[str, Any],
         metrics: dict[str, Any],
         description: str | None = None,
+        *,
+        scaler: Any | None = None,
+        run_id: str | None = None,
     ) -> ModelRegistryRow:
-        """Save the model artefact to disk and record metadata in the DB.
+        """Save the model artefact to disk and record a NEW version in the DB.
+
+        This inserts rather than overwrites. The previous behaviour upserted on
+        ``model_name``, so every retrain destroyed the prior run's metrics and
+        left no way to compare two experiments or roll back -- which for a
+        research lab is the one thing a registry exists to prevent.
 
         Args:
-            model: A trained ``BaseModel`` instance.
+            model: A trained :class:`~models.base.BaseModel` instance.
             training_info: Arbitrary dict describing the training data
-                (ticker, date range, feature list, etc.).
-            metrics: Evaluation metrics produced by ``model.evaluate()``.
+                (ticker, date range, feature list, split boundaries, ...).
+            metrics: Evaluation metrics, ideally from
+                :meth:`~models.base.BaseModel.evaluate` with ``bars`` supplied
+                so the row records net-of-cost performance, not just accuracy.
             description: Optional free-text description.
+            scaler: Fitted feature scaler used during training. Persisted
+                beside the model, because an artefact that cannot reproduce
+                its own input normalisation cannot be served.
+            run_id: Identifier for the training run. Generated when omitted.
 
         Returns:
-            The created / updated ``ModelRegistryRow``.
+            The newly created :class:`ModelRegistryRow`.
         """
-        # Serialise model to disk ------------------------------------------------
-        model_filename = f"{model.name}.joblib"
-        model_path = str(self._models_dir / model_filename)
-        model.save(model_path)
+        run_id = run_id or uuid.uuid4().hex[:16]
 
-        # Persist metadata -------------------------------------------------------
         session = get_session()
         try:
-            existing: ModelRegistryRow | None = (
-                session.query(ModelRegistryRow)
-                .filter_by(model_name=model.name)
-                .first()
+            next_version = self._next_version(session, model.name)
+
+            # Version-stamped filenames so artefacts never clobber each other.
+            suffix = _artifact_suffix(model)
+            stem = f"{model.name}_v{next_version}"
+            model_path = str(self._models_dir / f"{stem}{suffix}")
+            model.save(model_path)
+
+            scaler_path: str | None = None
+            if scaler is not None:
+                scaler_path = str(self._models_dir / f"{stem}_scaler.joblib")
+                joblib.dump(scaler, scaler_path)
+
+            # Demote the incumbent before promoting this run, so the partial
+            # unique index on is_latest never sees two current rows.
+            session.query(ModelRegistryRow).filter_by(
+                model_name=model.name, is_latest=True
+            ).update({"is_latest": False}, synchronize_session=False)
+
+            row = ModelRegistryRow(
+                model_name=model.name,
+                model_type=model.model_type,
+                description=description,
+                hyperparameters=_make_json_safe(model.get_hyperparameters()),
+                training_dataset_info=_make_json_safe(training_info),
+                performance_metrics=_make_json_safe(metrics),
+                model_path=model_path,
+                version=next_version,
+                run_id=run_id,
+                artifact_hash=_file_sha256(model_path),
+                scaler_path=scaler_path,
+                is_latest=True,
             )
-
-            # Strip non-JSON-serialisable values (e.g. numpy arrays) from metrics.
-            safe_metrics = _make_json_safe(metrics)
-            safe_hyperparams = _make_json_safe(model.get_hyperparameters())
-            safe_training = _make_json_safe(training_info)
-
-            if existing is not None:
-                existing.model_type = model.model_type
-                existing.description = description
-                existing.hyperparameters = safe_hyperparams
-                existing.training_dataset_info = safe_training
-                existing.performance_metrics = safe_metrics
-                existing.model_path = model_path
-                existing.updated_at = datetime.now(timezone.utc)
-                row = existing
-                logger.info("Updated registry entry for model %r.", model.name)
-            else:
-                row = ModelRegistryRow(
-                    model_name=model.name,
-                    model_type=model.model_type,
-                    description=description,
-                    hyperparameters=safe_hyperparams,
-                    training_dataset_info=safe_training,
-                    performance_metrics=safe_metrics,
-                    model_path=model_path,
-                )
-                session.add(row)
-                logger.info("Created registry entry for model %r.", model.name)
-
+            session.add(row)
             session.commit()
             session.refresh(row)
+
+            logger.info(
+                "Registered model %r version %d (run_id=%s).",
+                model.name, next_version, run_id,
+            )
             return row
         except Exception:
             session.rollback()
@@ -187,42 +226,110 @@ class ModelRegistry:
         finally:
             session.close()
 
-    def get(self, model_name: str) -> ModelRegistryRow | None:
+    @staticmethod
+    def _next_version(session: Any, model_name: str) -> int:
+        """Next version number for *model_name* (1 when it is new)."""
+        current = (
+            session.query(ModelRegistryRow.version)
+            .filter_by(model_name=model_name)
+            .order_by(ModelRegistryRow.version.desc())
+            .first()
+        )
+        return 1 if current is None else int(current[0]) + 1
+
+    def list_versions(self, model_name: str) -> list[ModelRegistryRow]:
+        """Every registered version of *model_name*, newest first.
+
+        Args:
+            model_name: Model identifier.
+
+        Returns:
+            Rows ordered by descending version.
+        """
+        session = get_session()
+        try:
+            return (
+                session.query(ModelRegistryRow)
+                .filter_by(model_name=model_name)
+                .order_by(ModelRegistryRow.version.desc())
+                .all()
+            )
+        finally:
+            session.close()
+
+    def load_scaler(self, model_name: str, version: int | None = None) -> Any:
+        """Load the fitted scaler stored beside a model version.
+
+        Args:
+            model_name: Model identifier.
+            version: Version to load. ``None`` uses the current one.
+
+        Returns:
+            The deserialised scaler.
+
+        Raises:
+            ValueError: If the model or version is not registered, or no
+                scaler was saved with it.
+            FileNotFoundError: If the scaler file is missing from disk.
+        """
+        row = self.get(model_name, version=version)
+        if row is None:
+            raise ValueError(f"Model {model_name!r} version {version!r} not found.")
+        if not row.scaler_path:
+            raise ValueError(
+                f"No scaler recorded for {model_name!r} v{row.version}. Predictions "
+                "cannot reproduce training-time normalisation without it; re-register "
+                "the model passing scaler=<fitted scaler>."
+            )
+        if not os.path.isfile(row.scaler_path):
+            raise FileNotFoundError(f"Scaler file missing at {row.scaler_path!r}.")
+        return joblib.load(row.scaler_path)
+
+    def get(
+        self, model_name: str, version: int | None = None
+    ) -> ModelRegistryRow | None:
         """Fetch model metadata from the database.
 
         Args:
-            model_name: Unique model identifier.
+            model_name: Model identifier.
+            version: Specific version. ``None`` returns the current one
+                (``is_latest``), falling back to the highest version number if
+                no row is flagged.
 
         Returns:
             ``ModelRegistryRow`` if found, otherwise ``None``.
         """
         session = get_session()
         try:
-            row = (
-                session.query(ModelRegistryRow)
-                .filter_by(model_name=model_name)
-                .first()
+            q = session.query(ModelRegistryRow).filter_by(model_name=model_name)
+            if version is not None:
+                return q.filter_by(version=version).first()
+            return (
+                q.filter_by(is_latest=True).first()
+                or q.order_by(ModelRegistryRow.version.desc()).first()
             )
-            return row
         finally:
             session.close()
 
-    def load_model(self, model_name: str) -> BaseModel:
+    def load_model(self, model_name: str, version: int | None = None) -> BaseModel:
         """Load a trained model from disk using the registry metadata.
 
         Args:
-            model_name: Unique model identifier.
+            model_name: Model identifier.
+            version: Version to load. ``None`` loads the current one.
 
         Returns:
             A fully initialised ``BaseModel`` subclass instance.
 
         Raises:
-            ValueError: If the model is not found in the registry.
+            ValueError: If the model, version, or model type is unknown.
             FileNotFoundError: If the serialised artefact is missing.
         """
-        row = self.get(model_name)
+        row = self.get(model_name, version=version)
         if row is None:
-            raise ValueError(f"Model {model_name!r} not found in registry.")
+            raise ValueError(
+                f"Model {model_name!r} version {version!r} not found in registry."
+            )
 
         if not os.path.isfile(row.model_path):
             raise FileNotFoundError(
@@ -246,7 +353,11 @@ class ModelRegistry:
         """Return a list of all registered models (metadata only)."""
         session = get_session()
         try:
-            rows = session.query(ModelRegistryRow).order_by(ModelRegistryRow.created_at.desc()).all()
+            rows = (
+                session.query(ModelRegistryRow)
+                .order_by(ModelRegistryRow.created_at.desc())
+                .all()
+            )
             return rows
         finally:
             session.close()
@@ -334,6 +445,25 @@ class ModelRegistry:
 # ======================================================================
 # Helpers
 # ======================================================================
+
+
+def _artifact_suffix(model: BaseModel) -> str:
+    """File extension appropriate to how *model* serialises itself.
+
+    Torch models write a ``.pt`` checkpoint via ``torch.save``; sklearn-family
+    models use joblib. The registry previously hard-coded ``.joblib`` for
+    everything, which mislabelled every LSTM checkpoint it wrote.
+    """
+    return ".pt" if getattr(model, "model_type", "") == "lstm" else ".joblib"
+
+
+def _file_sha256(path: str, chunk_size: int = 1 << 20) -> str:
+    """SHA-256 of a file, so a registry row can be tied to bytes on disk."""
+    digest = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(chunk_size), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _make_json_safe(obj: Any) -> Any:

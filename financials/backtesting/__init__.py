@@ -1,5 +1,13 @@
 """Backtesting subsystem for the quant lab."""
 
+from financials.backtesting.ml_adapter import (
+    MLBacktestResult,
+    backtest_predictions,
+    cost_sweep,
+    probabilities_to_positions,
+    simulate_positions,
+    tune_threshold,
+)
 from financials.backtesting.constants import (
     PERIODS_PER_YEAR,
     infer_interval,
@@ -27,6 +35,12 @@ __all__ = [
     "periods_per_year",
     "resolve_periods",
     "compute_alpha_beta",
+    "MLBacktestResult",
+    "backtest_predictions",
+    "cost_sweep",
+    "probabilities_to_positions",
+    "simulate_positions",
+    "tune_threshold",
     "compute_all_metrics",
     "compute_sharpe_ratio",
     "compute_sortino_ratio",
