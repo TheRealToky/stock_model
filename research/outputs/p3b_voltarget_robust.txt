@@ -1,0 +1,64 @@
+2026-06-16 21:22:56.815 | DEBUG    | financials.features.registry:_register_builtins:151 - Registered 15 built-in features
+====================================================================================================
+LOCKED OVERLAY: span=22 q=0.5 min_days=60
+====================================================================================================
+
+### A. Per-year stability (AAPL, TRAIN+VAL) ###
+2026-06-16 21:23:00.834 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=AAPL/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:23:09.908 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 406535 rows from /app/data/feature_store
+
+ cost=2bp:
+ year  strat_sharpe  bh_sharpe   edge  strat_maxDD  bh_maxDD  strat_totret  bh_totret  avg_expo
+ 2021         1.071      1.139 -0.068        0.197     0.197         0.304      0.334     0.980
+ 2022        -1.049     -0.938 -0.111        0.267     0.311        -0.230     -0.268     0.824
+ 2023         1.708      1.741 -0.033        0.162     0.162         0.459      0.481     0.985
+ 2024         0.958      1.001 -0.043        0.164     0.166         0.270      0.301     0.960
+ 2025        -1.829     -1.051 -0.778        0.251     0.322        -0.167     -0.151     0.798
+
+ cost=30bp:
+ year  strat_sharpe  bh_sharpe   edge  strat_maxDD  bh_maxDD  strat_totret  bh_totret  avg_expo
+ 2021         1.062      1.134 -0.072        0.197     0.197         0.302      0.332     0.980
+ 2022        -1.065     -0.938 -0.127        0.270     0.311        -0.233     -0.268     0.824
+ 2023         1.705      1.741 -0.036        0.162     0.162         0.458      0.481     0.985
+ 2024         0.951      1.001 -0.050        0.164     0.166         0.268      0.301     0.960
+ 2025        -1.845     -1.051 -0.794        0.252     0.322        -0.168     -0.151     0.798
+
+
+### B. Cross-ticker (TRAIN+VAL, 2bp round-trip) ###
+2026-06-16 21:23:13.819 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=AAPL/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:23:21.885 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 406535 rows from /app/data/feature_store
+2026-06-16 21:23:25.773 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=MSFT/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:23:35.203 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 405730 rows from /app/data/feature_store
+2026-06-16 21:23:39.626 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=NVDA/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:23:48.629 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 405423 rows from /app/data/feature_store
+2026-06-16 21:23:52.699 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=AMZN/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:24:02.067 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 400835 rows from /app/data/feature_store
+2026-06-16 21:24:06.314 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=META/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:24:15.286 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 404647 rows from /app/data/feature_store
+2026-06-16 21:24:19.532 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=TSLA/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:24:29.203 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 404276 rows from /app/data/feature_store
+2026-06-16 21:24:33.191 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=AMD/* ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:24:42.470 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 404895 rows from /app/data/feature_store
+2026-06-16 21:24:46.448 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=NFLX/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:24:55.547 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 402196 rows from /app/data/feature_store
+ticker  strat_sharpe  bh_sharpe   edge  strat_maxDD  bh_maxDD  dd_ok  strat_totret  bh_totret  avg_expo  beats_bh
+  AAPL         0.388      0.397 -0.009        0.283     0.349   True         0.551      0.596     0.929     False
+  MSFT         0.542      0.501  0.040        0.338     0.389   True         0.783      0.774     0.926      True
+  NVDA         1.288      1.143  0.145        0.591     0.686   True         8.086      7.372     0.903      True
+  AMZN         0.225      0.162  0.063        0.480     0.568   True         0.285      0.129     0.905      True
+  META         0.645      0.515  0.130        0.685     0.771   True         1.467      1.011     0.923      True
+  TSLA         0.306      0.298  0.008        0.700     0.754   True         0.284      0.172     0.924      True
+   AMD         0.225      0.199  0.027        0.641     0.667   True         0.177      0.056     0.932      True
+  NFLX         0.607      0.545  0.061        0.664     0.767   True         1.245      1.104     0.915      True
+
+medians:
+edge           0.051
+strat_maxDD    0.616
+bh_maxDD       0.677
+strat_totret   0.667
+bh_totret      0.685
+avg_expo       0.924
+
+beats_bh (Sharpe up AND maxDD<=B&H): 7/8
+maxDD <= B&H: 8/8
+Sharpe edge > 0: 7/8

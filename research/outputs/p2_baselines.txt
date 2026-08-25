@@ -1,0 +1,51 @@
+2026-06-16 21:16:43.554 | DEBUG    | financials.features.registry:_register_builtins:151 - Registered 15 built-in features
+2026-06-16 21:16:47.325 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=AAPL/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:16:55.570 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 406535 rows from /app/data/feature_store
+AAPL TRAIN+VAL 2021-01-04 14:32:00+00:00 .. 2025-04-30 19:59:00+00:00  bars=406,535
+
+========================================================================================================================
+BASELINES vs BUY&HOLD across cost grid  (AAPL, TRAIN+VAL, Sharpe annualized @ 98280)
+B&H Sharpe (this window): 0.397  B&H maxDD: 0.349  B&H total return: 0.596
+========================================================================================================================
+               strategy             cost  rt_bps  strat_sharpe     edge  strat_maxDD  strat_totret  n_trades  trades/day  exposure  beats_bh
+   ema_crossover(12,26)     frictionless   0.000        -0.423   -0.820        0.399        -0.234      7183       6.701     0.515     False
+   ema_crossover(12,26)    ultra_low_1bp   2.000        -2.161   -2.558        0.844        -0.818      7183       6.701     0.515     False
+   ema_crossover(12,26)          low_2bp   4.000        -3.893   -4.290        0.962        -0.957      7183       6.701     0.515     False
+   ema_crossover(12,26)          mid_5bp  10.000        -9.020   -9.417        0.999        -0.999      7183       6.701     0.515     False
+   ema_crossover(12,26)        high_10bp  20.000       -17.102  -17.498        1.000        -1.000      7183       6.701     0.515     False
+   ema_crossover(12,26) lab_default_15bp  30.000       -24.300  -24.696        1.000        -1.000      7183       6.701     0.515     False
+mean_reversion(20,2,.5)     frictionless   0.000         0.795    0.398        0.180         0.832      7981       7.445     0.198      True
+mean_reversion(20,2,.5)    ultra_low_1bp   2.000        -1.819   -2.216        0.661        -0.629      7981       7.445     0.198     False
+mean_reversion(20,2,.5)          low_2bp   4.000        -4.422   -4.819        0.928        -0.925      7981       7.445     0.198     False
+mean_reversion(20,2,.5)          mid_5bp  10.000       -12.036  -12.432        0.999        -0.999      7981       7.445     0.198     False
+mean_reversion(20,2,.5)        high_10bp  20.000       -23.463  -23.860        1.000        -1.000      7981       7.445     0.198     False
+mean_reversion(20,2,.5) lab_default_15bp  30.000       -32.719  -33.115        1.000        -1.000      7981       7.445     0.198     False
+    naive_reversal_1bar     frictionless   0.000         0.399    0.002        0.355         0.513    102512      95.627     0.486     False
+    naive_reversal_1bar    ultra_low_1bp   2.000       -24.020  -24.417        1.000        -1.000    102512      95.627     0.486     False
+    naive_reversal_1bar          low_2bp   4.000       -48.002  -48.399        1.000        -1.000    102512      95.627     0.486     False
+    naive_reversal_1bar          mid_5bp  10.000      -113.743 -114.139        1.000        -1.000    102512      95.627     0.486     False
+    naive_reversal_1bar        high_10bp  20.000      -193.099 -193.495        1.000        -1.000    102512      95.627     0.486     False
+    naive_reversal_1bar lab_default_15bp  30.000      -239.119 -239.514        1.000        -1.000    102512      95.627     0.486     False
+    naive_momentum_1bar     frictionless   0.000        -0.020   -0.417        0.477         0.065    102625      95.732     0.492     False
+    naive_momentum_1bar    ultra_low_1bp   2.000       -24.266  -24.663        1.000        -1.000    102625      95.732     0.492     False
+    naive_momentum_1bar          low_2bp   4.000       -48.098  -48.495        1.000        -1.000    102625      95.732     0.492     False
+    naive_momentum_1bar          mid_5bp  10.000      -113.578 -113.975        1.000        -1.000    102625      95.732     0.492     False
+    naive_momentum_1bar        high_10bp  20.000      -193.013 -193.410        1.000        -1.000    102625      95.732     0.492     False
+    naive_momentum_1bar lab_default_15bp  30.000      -239.296 -239.691        1.000        -1.000    102625      95.732     0.492     False
+        sma_trend(5,30)     frictionless   0.000        -0.307   -0.704        0.337        -0.162     10012       9.340     0.512     False
+        sma_trend(5,30)    ultra_low_1bp   2.000        -2.695   -3.092        0.905        -0.887     10012       9.340     0.512     False
+        sma_trend(5,30)          low_2bp   4.000        -5.075   -5.472        0.987        -0.985     10012       9.340     0.512     False
+        sma_trend(5,30)          mid_5bp  10.000       -12.088  -12.485        1.000        -1.000     10012       9.340     0.512     False
+        sma_trend(5,30)        high_10bp  20.000       -22.954  -23.350        1.000        -1.000     10012       9.340     0.512     False
+        sma_trend(5,30) lab_default_15bp  30.000       -32.310  -32.706        1.000        -1.000     10012       9.340     0.512     False
+
+--- Frictionless (gross) vs lab-default summary ---
+cost                     frictionless  low_2bp  mid_5bp  lab_default_15bp
+strategy                                                                 
+ema_crossover(12,26)           -0.423   -3.893   -9.020           -24.300
+mean_reversion(20,2,.5)         0.795   -4.422  -12.036           -32.719
+naive_momentum_1bar            -0.020  -48.098 -113.578          -239.296
+naive_reversal_1bar             0.399  -48.002 -113.743          -239.119
+sma_trend(5,30)                -0.307   -5.075  -12.088           -32.310
+
+Any config beating B&H (higher Sharpe AND maxDD<=B&H)? True  (1/30 configs)

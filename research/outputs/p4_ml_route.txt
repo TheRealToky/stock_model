@@ -1,0 +1,21 @@
+2026-06-17 07:15:54.174 | DEBUG    | financials.features.registry:_register_builtins:151 - Registered 15 built-in features
+2026-06-17 07:16:13.971 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume", "returns", "log_returns", "rsi", "macd_macd", "macd_histogram", "volati ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-17 07:17:17.621 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 503363 rows from /app/data/feature_store
+AAPL loaded 503,363 bars with features
+train=277,396  val=129,133  test=96,828
+
+model: XGBClassifier
+  AUC train = 0.5809   P(up) mean=0.4895 std=0.0207
+  AUC val   = 0.5028   P(up) mean=0.4914 std=0.0230
+  AUC test  = 0.5056   P(up) mean=0.4915 std=0.0254
+
+best val threshold=0.45  val_strat_sharpe=-3.602  val_bh_sharpe=0.329  val_trades/day=9.2
+
+==========================================================================================
+ML DIRECTION CLASSIFIER on SEALED TEST (net of costs), threshold fixed from val
+==========================================================================================
+  cost=frictionless strat_sharpe=  1.212  bh_sharpe= 0.991  edge=  0.222  strat_DD=0.172 bh_DD=0.155  trades/day=11.0  beats=False
+  cost=low_2bp      strat_sharpe= -3.674  bh_sharpe= 0.990  edge= -4.664  strat_DD=0.591 bh_DD=0.155  trades/day=11.0  beats=False
+  cost=lab_15bp     strat_sharpe=-32.128  bh_sharpe= 0.984  edge=-33.113  strat_DD=1.000 bh_DD=0.155  trades/day=11.0  beats=False
+
+DONE p4_ml

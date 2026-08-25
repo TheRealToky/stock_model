@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 
 from financials.config.settings import settings
+from financials.backtesting.constants import resolve_periods
 from financials.backtesting.metrics import compute_all_metrics
 from strategies.base import BaseStrategy
 
@@ -104,6 +105,7 @@ class BacktestEngine:
         strategy: BaseStrategy,
         df: pd.DataFrame,
         ticker: str = "UNKNOWN",
+        interval: str | None = None,
     ) -> BacktestResult:
         """Run a single backtest.
 
@@ -112,6 +114,9 @@ class BacktestEngine:
             df: DataFrame with at least a ``close`` column and a
                 :class:`~pandas.DatetimeIndex`.
             ticker: Instrument symbol for labelling.
+            interval: Bar interval (e.g. ``"1min"``, ``"1d"``) driving the
+                annualisation of Sharpe, Sortino and CAGR.  Inferred from
+                *df*'s ``DatetimeIndex`` when omitted.
 
         Returns:
             A :class:`BacktestResult` containing the equity curve, trade
@@ -129,6 +134,10 @@ class BacktestEngine:
 
         # Let the strategy validate its own dependencies.
         strategy.validate_dataframe(df)
+
+        # Annualisation factor -- explicit interval wins, otherwise infer from
+        # the index.  Never silently assume the daily 252 convention.
+        ann = resolve_periods(interval=interval, index=df.index)
 
         logger.info(
             "Running strategy '%s' on %s (%d bars, %s -> %s)",
@@ -150,7 +159,8 @@ class BacktestEngine:
 
         # Build date labels.
         if isinstance(df.index, pd.DatetimeIndex):
-            dates = df.index.strftime("%Y-%m-%d").tolist()
+            label_fmt = "%Y-%m-%d" if ann <= 252 else "%Y-%m-%d %H:%M:%S"
+            dates = df.index.strftime(label_fmt).tolist()
         else:
             dates = [str(d) for d in df.index]
 
@@ -166,11 +176,18 @@ class BacktestEngine:
         )
 
         # Metrics.
+        # Benchmark is buy-and-hold of the asset itself over the same bars,
+        # so alpha/beta answer "did the strategy beat simply holding it?".
+        benchmark_returns = np.diff(close_prices) / np.where(
+            close_prices[:-1] == 0.0, 1.0, close_prices[:-1]
+        )
+
         metrics = compute_all_metrics(
             equity_curve=equity_curve,
             trades=trades,
             risk_free_rate=settings.backtest.risk_free_rate,
-            signals=signals,
+            periods=ann,
+            benchmark_returns=benchmark_returns,
         )
 
         result = BacktestResult(

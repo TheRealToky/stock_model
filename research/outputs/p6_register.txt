@@ -1,0 +1,12 @@
+2026-06-17 07:13:29.726 | DEBUG    | financials.features.registry:_register_builtins:151 - Registered 15 built-in features
+2026-06-17 07:13:49.610 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=AAPL/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-17 07:14:26.529 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 503363 rows from /app/data/feature_store
+registered vol_target_overlay id=10d1de0c-652a-4394-baa5-f6c5d078ea1b, buy_and_hold id=cd1c9d3e-94a5-4b6e-ace6-3fbc8974df4d
+
+backtest_results written (split, kind, id, sharpe, maxDD):
+  IS   overlay  id=dea9f15b-53ea-4bf5-b01a-b33539a1f541  sharpe=0.388  maxDD=0.283
+  IS   bh       id=bf43e39b-75dd-48d9-98ab-d384a646b344  sharpe=0.397  maxDD=0.349
+  OOS  overlay  id=cf19c039-aeff-4113-9cf1-abb081f34af7  sharpe=1.164  maxDD=0.155
+  OOS  bh       id=3674f899-61f9-4c93-ab76-4bce0070d040  sharpe=0.956  maxDD=0.155
+
+DONE p6

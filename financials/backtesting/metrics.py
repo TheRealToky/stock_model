@@ -13,6 +13,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from financials.backtesting.constants import resolve_periods
+
 logger = logging.getLogger(__name__)
 
 
@@ -95,49 +97,67 @@ def compute_sortino_ratio(
 
 
 def compute_alpha_beta(
-    returns: np.ndarray | pd.Series,
-    signals: np.ndarray | pd.Series,
+    strategy_returns: np.ndarray | pd.Series,
+    benchmark_returns: np.ndarray | pd.Series,
+    periods: int | None = None,
+    interval: str | None = None,
 ) -> tuple[float, float]:
-    """Compute alpha and beta of the strategy against the benchmark returns.
+    """Compute annualised alpha and beta of a strategy against a benchmark.
 
-    Beta measures the strategy's sensitivity to benchmark moves.  Alpha is
-    the intercept — the strategy's excess return unexplained by beta.
+    Beta is the OLS slope of *strategy_returns* regressed on
+    *benchmark_returns*; alpha is the intercept, annualised by *periods*.
+
+    Both inputs must be **realised return series of the same length** --
+    typically the strategy's periodic returns and the underlying asset's
+    buy-and-hold returns over the same bars.  Passing positions/signals as
+    the benchmark (as this function used to do internally) produces
+    meaningless numbers.
 
     Args:
-        returns: Periodic benchmark (e.g. market) simple returns.
-        signals: Trading signals aligned with *returns*. Assumed to be
-        **already shifted** for look-ahead bias (i.e. signal at
-        index *i* applies to the return at index *i*).
+        strategy_returns: Periodic simple returns of the strategy.
+        benchmark_returns: Periodic simple returns of the benchmark,
+            aligned one-for-one with *strategy_returns*.
+        periods: Bars per year used to annualise alpha.
+        interval: Bar interval (e.g. ``"1min"``) as an alternative to
+            *periods*.
 
     Returns:
-        Tuple of (alpha, beta).  Returns (0.0, 0.0) when fewer than 2
-        valid observations are available.
+        Tuple of ``(annualised_alpha, beta)``.  Returns ``(0.0, 0.0)`` when
+        fewer than 2 overlapping observations are available or the
+        benchmark has zero variance.
+
+    Raises:
+        ValueError: If the two series differ in length, or if neither
+            *periods* nor *interval* is supplied.
     """
-    returns = np.asarray(returns, dtype=np.float64)
-    signals = np.asarray(signals, dtype=np.float64)
+    strat = np.asarray(strategy_returns, dtype=np.float64)
+    bench = np.asarray(benchmark_returns, dtype=np.float64)
 
-    # Remove signals' first element to match the returns
-    signals = np.delete(signals, 0)
+    if strat.shape != bench.shape:
+        raise ValueError(
+            f"strategy_returns and benchmark_returns must be the same length; "
+            f"got {strat.shape} and {bench.shape}."
+        )
 
-    strategy_returns = signals * returns
+    ann = resolve_periods(interval=interval, periods=periods)
 
-    mask = ~np.isnan(strategy_returns) & ~np.isnan(returns)
-    strategy_returns = strategy_returns[mask]
-    benchmark_returns = returns[mask]
+    mask = ~np.isnan(strat) & ~np.isnan(bench)
+    strat = strat[mask]
+    bench = bench[mask]
 
-    if len(strategy_returns) < 2:
-        logger.warning("Alpha and Beta requires at least 2 return observations; returning 0.0.")
+    if len(strat) < 2:
+        logger.warning("Alpha and beta require at least 2 paired observations; returning 0.0.")
         return 0.0, 0.0
 
-    cov_matrix = np.cov(strategy_returns, benchmark_returns)
-    var_benchmark = cov_matrix[1, 1]
+    var_benchmark = np.var(bench, ddof=1)
     if var_benchmark == 0.0:
+        logger.warning("Benchmark has zero variance; alpha/beta undefined, returning 0.0.")
         return 0.0, 0.0
 
-    beta = cov_matrix[0, 1] / var_benchmark
-    alpha = strategy_returns.mean() - beta * returns.mean()
+    beta = float(np.cov(strat, bench, ddof=1)[0, 1] / var_benchmark)
+    alpha = float((strat.mean() - beta * bench.mean()) * ann)
 
-    return float(alpha), float(beta)
+    return alpha, beta
 
 
 def compute_max_drawdown(equity_curve: np.ndarray | pd.Series | list) -> float:
@@ -258,8 +278,9 @@ def compute_all_metrics(
     equity_curve: np.ndarray | pd.Series | list,
     trades: list[dict[str, Any]],
     risk_free_rate: float = 0.04,
-    periods: int = 252,
-    signals: np.ndarray | pd.Series | None = None,
+    periods: int | None = None,
+    interval: str | None = None,
+    benchmark_returns: np.ndarray | pd.Series | None = None,
 ) -> dict[str, float]:
     """Compute every available performance metric in one call.
 
@@ -267,18 +288,27 @@ def compute_all_metrics(
         equity_curve: Portfolio equity values over time.
         trades: List of trade dictionaries (must contain ``"pnl"``).
         risk_free_rate: Annualised risk-free rate.
-        periods: Number of periods per year.
-        signals: Optional trading signals aligned with the equity curve.
-            When provided together with *returns*, alpha and
-            beta are included in the output.
-        returns: Optional benchmark (e.g. market) simple returns
-            aligned with *signals*.
+        periods: Bars per year, used to annualise Sharpe, Sortino and CAGR.
+        interval: Bar interval (e.g. ``"1min"``, ``"1d"``) as an
+            alternative to *periods*.  Exactly one of the two is required --
+            there is no default, because annualising intraday bars at the
+            daily 252 convention overstates Sharpe by up to ~19.7x.
+        benchmark_returns: Optional periodic simple returns of a benchmark
+            (e.g. the underlying asset's buy-and-hold returns), aligned
+            with the equity curve's own returns.  When supplied, ``alpha``
+            and ``beta`` are included in the output.
+
     Returns:
         Dictionary mapping metric names to their computed values.
+
+    Raises:
+        ValueError: If neither *periods* nor *interval* is supplied.
     """
+    ann = resolve_periods(interval=interval, periods=periods)
+
     equity = np.asarray(equity_curve, dtype=np.float64)
 
-    # Derive daily simple returns from the equity curve.
+    # Derive periodic simple returns from the equity curve.
     if len(equity) >= 2:
         returns = np.diff(equity) / np.where(equity[:-1] == 0, 1.0, equity[:-1])
     else:
@@ -286,14 +316,14 @@ def compute_all_metrics(
 
     initial_value = float(equity[0]) if len(equity) > 0 else 0.0
     final_value = float(equity[-1]) if len(equity) > 0 else 0.0
-    years = len(equity) / periods if periods > 0 else 0.0
+    years = len(equity) / ann
 
     max_dd = compute_max_drawdown(equity)
     cagr = compute_cagr(initial_value, final_value, years)
 
     metrics: dict[str, float] = {
-        "sharpe_ratio": compute_sharpe_ratio(returns, risk_free_rate, periods),
-        "sortino_ratio": compute_sortino_ratio(returns, risk_free_rate, periods),
+        "sharpe_ratio": compute_sharpe_ratio(returns, risk_free_rate, ann),
+        "sortino_ratio": compute_sortino_ratio(returns, risk_free_rate, ann),
         "max_drawdown": max_dd,
         "cagr": cagr,
         "calmar_ratio": compute_calmar_ratio(cagr, max_dd),
@@ -303,16 +333,31 @@ def compute_all_metrics(
         "initial_capital": initial_value,
         "final_capital": final_value,
         "total_return": (final_value / initial_value - 1.0) if initial_value > 0 else 0.0,
+        "periods_per_year": ann,
     }
 
-    if signals is not None and returns is not None:
-        alpha, beta = compute_alpha_beta(returns, signals)
-        metrics["alpha"] = alpha
-        metrics["beta"] = beta
+    if benchmark_returns is not None:
+        bench = np.asarray(benchmark_returns, dtype=np.float64)
+        # The equity curve yields one fewer return than it has points; trim a
+        # benchmark supplied at full bar length so the two align.
+        if len(bench) == len(returns) + 1:
+            bench = bench[1:]
+        if len(bench) != len(returns):
+            logger.warning(
+                "benchmark_returns length %d does not align with %d strategy returns; "
+                "skipping alpha/beta.",
+                len(bench),
+                len(returns),
+            )
+        else:
+            alpha, beta = compute_alpha_beta(returns, bench, periods=ann)
+            metrics["alpha"] = alpha
+            metrics["beta"] = beta
 
     logger.info(
-        "Metrics computed: Sharpe=%.3f  Sortino=%.3f  MaxDD=%.2f%%  CAGR=%.2f%%  "
-        "WinRate=%.1f%%  Trades=%d",
+        "Metrics computed (periods/yr=%d): Sharpe=%.3f  Sortino=%.3f  MaxDD=%.2f%%  "
+        "CAGR=%.2f%%  WinRate=%.1f%%  Trades=%d",
+        ann,
         metrics["sharpe_ratio"],
         metrics["sortino_ratio"],
         metrics["max_drawdown"] * 100,

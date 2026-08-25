@@ -211,8 +211,17 @@ class MLDataLoader:
 
         The iteration happens **per symbol**, so each yielded window is
         contiguous in time and contains no cross-stock leakage.
+
+        Because ``y`` is read from the window's own final bar, *target_column*
+        must be a forward-looking column. Passing a contemporaneous one -- or
+        one that also appears in *feature_columns* -- leaks the label.
+
+        Raises:
+            ValueError: If *target_column* also appears in *feature_columns*.
         """
         import numpy as np
+
+        _reject_leaky_target(target_column, feature_columns)
 
         cols = list(dict.fromkeys(["timestamp", "symbol", target_column, *feature_columns]))
         target_symbols = symbols or self.available_symbols()
@@ -401,6 +410,70 @@ class MLDataLoader:
 # ---------------------------------------------------------------------------
 
 
+#: Feature-store columns that are backward-looking or contemporaneous and can
+#: therefore never serve as a training label, even when they are kept out of
+#: ``feature_columns``.  ``price_direction`` is the dangerous one: it reads
+#: like a ready-made label but is ``close_t > close_{t-1}``, i.e. it describes
+#: the bar the window already ends on.  Renaming it in the store would mean
+#: re-running the ETL across every partition, so it is denied here instead.
+NON_PREDICTIVE_TARGET_COLUMNS: frozenset[str] = frozenset({
+    "open", "high", "low", "close", "volume", "adjusted_close",
+    "returns", "log_returns", "price_direction",
+})
+
+
+def _reject_leaky_target(
+    target_column: str | None,
+    feature_columns: Sequence[str],
+) -> None:
+    """Refuse a target that the window has already seen.
+
+    Windows cover rows ``i - sequence_length .. i - 1`` and the label is
+    taken from ``target_arr[i - 1]`` -- the window's own final bar.  Two
+    ways that leaks:
+
+    1. The target is also an input, so the model reads its answer verbatim
+       at the last timestep.
+    2. The target is a raw or contemporaneous store column (see
+       :data:`NON_PREDICTIVE_TARGET_COLUMNS`), which describes the present
+       rather than the future even when kept out of the inputs.
+
+    Either way the run reports an accuracy that evaporates on real data.
+
+    Args:
+        target_column: Candidate target column, or ``None`` when a
+            ``target_fn`` is used instead.
+        feature_columns: The model's input columns.
+
+    Raises:
+        ValueError: If *target_column* is non-predictive, or also appears
+            in *feature_columns*.
+    """
+    if target_column is None:
+        return
+
+    if target_column in NON_PREDICTIVE_TARGET_COLUMNS:
+        raise ValueError(
+            f"target_column={target_column!r} is not a forward-looking label. "
+            "Windows end at bar i-1 and the label is read from that same bar, so "
+            f"{target_column!r} describes data the model has already seen "
+            "('price_direction' in particular compares the current close to the "
+            "PREVIOUS one, not to the next one). Derive the label with a forward "
+            "shift instead: "
+            "target_fn=lambda df: (df['close'].shift(-1) > df['close']).astype('float32'), "
+            "target_source_columns=['close']"
+        )
+
+    if target_column in set(feature_columns):
+        raise ValueError(
+            f"target_column={target_column!r} is also listed in feature_columns, "
+            f"which leaks the label into the model's input at the window's final "
+            f"timestep. Either drop it from feature_columns, or pass a forward-"
+            f"shifted target_fn instead, e.g. "
+            f"    target_fn=lambda df: (df['close'].shift(-1) > df['close']).astype('float32')"
+        )
+
+
 class StreamingSequenceDataset(_IterableDatasetBase):
     """Streaming PyTorch ``IterableDataset`` for sliding-window training.
 
@@ -441,7 +514,14 @@ class StreamingSequenceDataset(_IterableDatasetBase):
         ``target_column``.
     target_column:
         Name of a target column already present in the Parquet files.
-        Mutually exclusive with ``target_fn``.
+        Mutually exclusive with ``target_fn``.  Must be forward-looking:
+        the label is read from the window's own final bar, so a
+        contemporaneous column (``log_returns``, ``price_direction``)
+        leaks.  Listing it in ``feature_columns`` too raises.
+    target_source_columns:
+        Extra columns to load purely so ``target_fn`` can read them, e.g.
+        ``["close"]`` for a next-bar direction label.  They are **not**
+        passed to the model.  Only valid alongside ``target_fn``.
     symbols:
         Subset of tickers to iterate over.  ``None`` ⇒ all symbols.
     start / end:
@@ -468,6 +548,7 @@ class StreamingSequenceDataset(_IterableDatasetBase):
         *,
         target_fn: Callable[[pd.DataFrame], pd.Series] | None = None,
         target_column: str | None = None,
+        target_source_columns: Sequence[str] | None = None,
         symbols: Sequence[str] | None = None,
         start: str | pd.Timestamp | None = None,
         end: str | pd.Timestamp | None = None,
@@ -479,12 +560,16 @@ class StreamingSequenceDataset(_IterableDatasetBase):
         super().__init__()
         if (target_fn is None) == (target_column is None):
             raise ValueError("Provide exactly one of target_fn or target_column.")
+        _reject_leaky_target(target_column, feature_columns)
 
         self._loader = loader
         self._scaler = scaler
         self._feature_columns = list(feature_columns)
         self._target_fn = target_fn
         self._target_column = target_column
+        self._target_source_columns = list(target_source_columns or [])
+        if self._target_source_columns and target_fn is None:
+            raise ValueError("target_source_columns only applies alongside target_fn.")
         self._symbols = list(symbols) if symbols is not None else None
         self._start = start
         self._end = end
@@ -521,7 +606,9 @@ class StreamingSequenceDataset(_IterableDatasetBase):
         rng = np.random.default_rng(seed)
 
         if self._target_fn is not None:
-            extra_cols: list[str] = []
+            # Columns the target_fn reads but the model does not consume --
+            # e.g. `close` for a next-bar direction label.
+            extra_cols: list[str] = list(self._target_source_columns)
         else:
             extra_cols = [self._target_column]  # type: ignore[list-item]
         load_cols = list(dict.fromkeys(

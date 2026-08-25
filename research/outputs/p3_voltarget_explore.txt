@@ -1,0 +1,48 @@
+2026-06-16 21:20:34.370 | DEBUG    | financials.features.registry:_register_builtins:151 - Registered 15 built-in features
+2026-06-16 21:20:38.227 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=AAPL/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:20:47.462 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 406535 rows from /app/data/feature_store
+AAPL TRAIN+VAL bars=406,535  2021-01-04 14:32:00+00:00 .. 2025-04-30 19:59:00+00:00
+
+[validate] exposure==1 vs internal B&H:
+  strat total_return=0.5960  bh total_return=0.5960  sharpe strat=0.3969 bh=0.3969
+
+pred daily vol quantiles: p30=0.01022 p50=0.01182 p70=0.01435 p85=0.01707
+
+========================================================================================================================
+VOL-TARGET OVERLAY (in-sample TRAIN+VAL, AAPL); B&H sharpe=0.397 maxDD=0.349 totret=0.596
+========================================================================================================================
+ span  target_q     cost  strat_sharpe  bh_sharpe   edge  strat_maxDD  bh_maxDD  dd_ok  strat_totret  bh_totret  exposure  turn/day  beats_bh
+    5     0.500  low_2bp         0.424      0.397  0.027        0.259     0.349   True         0.587      0.596     0.887     0.026      True
+    5     0.500 lab_15bp         0.386      0.396 -0.010        0.268     0.349   True         0.530      0.594     0.887     0.026     False
+    5     0.700  low_2bp         0.393      0.397 -0.004        0.295     0.349   True         0.561      0.596     0.942     0.018     False
+    5     0.700 lab_15bp         0.369      0.396 -0.027        0.303     0.349   True         0.523      0.594     0.942     0.018     False
+    5     0.850  low_2bp         0.385      0.397 -0.012        0.314     0.349   True         0.561      0.596     0.976     0.011     False
+    5     0.850 lab_15bp         0.371      0.396 -0.025        0.314     0.349   True         0.536      0.594     0.976     0.011     False
+    5     0.950  low_2bp         0.382      0.397 -0.015        0.324     0.349   True         0.562      0.596     0.991     0.005     False
+    5     0.950 lab_15bp         0.376      0.396 -0.020        0.324     0.349   True         0.551      0.594     0.991     0.005     False
+   10     0.500  low_2bp         0.419      0.397  0.022        0.270     0.349   True         0.582      0.596     0.887     0.015      True
+   10     0.500 lab_15bp         0.397      0.396  0.001        0.271     0.349   True         0.548      0.594     0.887     0.015      True
+   10     0.700  low_2bp         0.370      0.397 -0.026        0.305     0.349   True         0.528      0.596     0.947     0.011     False
+   10     0.700 lab_15bp         0.356      0.396 -0.040        0.306     0.349   True         0.504      0.594     0.947     0.011     False
+   10     0.850  low_2bp         0.369      0.397 -0.028        0.324     0.349   True         0.535      0.596     0.980     0.007     False
+   10     0.850 lab_15bp         0.360      0.396 -0.035        0.325     0.349   True         0.520      0.594     0.980     0.007     False
+   10     0.950  low_2bp         0.398      0.397  0.001        0.328     0.349   True         0.592      0.596     0.991     0.003      True
+   10     0.950 lab_15bp         0.394      0.396 -0.002        0.329     0.349   True         0.585      0.594     0.991     0.003     False
+   22     0.500  low_2bp         0.425      0.397  0.028        0.284     0.349   True         0.596      0.596     0.892     0.009      True
+   22     0.500 lab_15bp         0.412      0.396  0.017        0.285     0.349   True         0.576      0.594     0.892     0.009      True
+   22     0.700  low_2bp         0.382      0.397 -0.015        0.321     0.349   True         0.551      0.596     0.954     0.007     False
+   22     0.700 lab_15bp         0.374      0.396 -0.022        0.322     0.349   True         0.536      0.594     0.954     0.007     False
+   22     0.850  low_2bp         0.382      0.397 -0.015        0.334     0.349   True         0.560      0.596     0.984     0.004     False
+   22     0.850 lab_15bp         0.377      0.396 -0.019        0.334     0.349   True         0.551      0.594     0.984     0.004     False
+   22     0.950  low_2bp         0.400      0.397  0.003        0.338     0.349   True         0.597      0.596     0.993     0.002      True
+   22     0.950 lab_15bp         0.397      0.396  0.002        0.338     0.349   True         0.592      0.594     0.993     0.002      True
+
+Configs beating B&H in-sample (Sharpe up AND maxDD<=B&H): 8/24
+
+Best by Sharpe edge (low_2bp):
+ span  target_q    cost  strat_sharpe  bh_sharpe  edge  strat_maxDD  bh_maxDD  dd_ok  strat_totret  bh_totret  exposure  turn/day  beats_bh
+   22     0.500 low_2bp         0.425      0.397 0.028        0.284     0.349   True         0.596      0.596     0.892     0.009      True
+    5     0.500 low_2bp         0.424      0.397 0.027        0.259     0.349   True         0.587      0.596     0.887     0.026      True
+   10     0.500 low_2bp         0.419      0.397 0.022        0.270     0.349   True         0.582      0.596     0.887     0.015      True
+   22     0.950 low_2bp         0.400      0.397 0.003        0.338     0.349   True         0.597      0.596     0.993     0.002      True
+   10     0.950 low_2bp         0.398      0.397 0.001        0.328     0.349   True         0.592      0.596     0.991     0.003      True
