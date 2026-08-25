@@ -44,9 +44,15 @@ Thumbs.db
 *.log
 logs/
 
+# Research
+# The research tree is TRACKED in full: scripts, the frozen config, reslib, the
+# report, and the output artifacts that are its evidence trail (~630 KB total).
+# It was previously ignored wholesale, which left the only correct evaluation
+# code and the entire 1-min study existing on one machine only.
+# Re-include the result CSVs that the blanket *.csv rule above would swallow.
+!research/outputs/*.csv
+
 # Files
-research
-strategies
 
 rm_wt.sh
 .Trash-0

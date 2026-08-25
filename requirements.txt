@@ -29,6 +29,10 @@ sqlalchemy>=2.0
 psycopg2-binary>=2.9
 asyncpg>=0.29
 
+# --- Feature store (Parquet read/write) ---
+pyarrow>=16
+duckdb>=1.0
+
 # --- Visualization ---
 matplotlib>=3.10
 plotly>=5.24

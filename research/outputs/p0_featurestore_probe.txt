@@ -1,0 +1,80 @@
+2026-06-16 20:58:21.553 | DEBUG    | financials.features.registry:_register_builtins:151 - Registered 15 built-in features
+dates: 1337  [2021-01-04 .. 2026-04-30]
+symbols: 126
+sample symbols: ['AAL', 'AAPL', 'ABNB', 'ALGT', 'ALK', 'AMD', 'AMZN', 'BBY', 'BKNG', 'BKSY', 'CAT', 'CEG', 'CHWY', 'CME', 'CMG', 'CNI', 'COIN', 'COP', 'COST', 'CP', 'CRWD', 'CSX', 'CVS', 'CVX', 'CZR', 'D', 'DAL', 'DE', 'DG', 'DLR']
+2026-06-16 20:58:28.408 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT * FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=AAPL/*.parquet', '/app/data/feature_store/date=2021-01-05 ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 20:58:28.554 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 1167 rows from /app/data/feature_store
+
+--- AAPL 2021-01-04..06 ---
+shape: (1167, 35)
+columns: ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'adjusted_close', 'atr', 'bollinger_bands_upper', 'bollinger_bands_middle', 'bollinger_bands_lower', 'ema', 'hma', 'log_returns', 'macd_macd', 'macd_signal', 'macd_histogram', 'price_direction', 'price_features_high_low_range', 'price_features_close_open_range', 'price_features_gap', 'returns', 'rolling_stats_rolling_mean', 'rolling_stats_rolling_std', 'rolling_stats_rolling_skew', 'rolling_stats_rolling_kurtosis', 'rsi', 'sma', 'volatility', 'volume_features_volume_sma', 'volume_features_volume_ratio', 'volume_features_obv', 'wma', 'date', 'symbol']
+dtypes:
+ timestamp                          datetime64[us, UTC]
+open                                           float32
+high                                           float32
+low                                            float32
+close                                          float32
+volume                                         float32
+adjusted_close                                 float32
+atr                                            float32
+bollinger_bands_upper                          float32
+bollinger_bands_middle                         float32
+bollinger_bands_lower                          float32
+ema                                            float32
+hma                                            float32
+log_returns                                    float32
+macd_macd                                      float32
+macd_signal                                    float32
+macd_histogram                                 float32
+price_direction                                   int8
+price_features_high_low_range                  float32
+price_features_close_open_range                float32
+price_features_gap                             float32
+returns                                        float32
+rolling_stats_rolling_mean                     float32
+rolling_stats_rolling_std                      float32
+rolling_stats_rolling_skew                     float32
+rolling_stats_rolling_kurtosis                 float32
+rsi                                            float32
+sma                                            float32
+volatility                                     float32
+volume_features_volume_sma                     float32
+volume_features_volume_ratio                   float32
+volume_features_obv                            float32
+wma                                            float32
+date                                    datetime64[us]
+symbol                                          object
+dtype: object
+
+head:
+                   timestamp        open        high         low       close    volume  adjusted_close       atr  bollinger_bands_upper  bollinger_bands_middle  bollinger_bands_lower         ema         hma  log_returns  macd_macd  macd_signal  macd_histogram  price_direction  price_features_high_low_range  price_features_close_open_range  price_features_gap   returns  rolling_stats_rolling_mean  rolling_stats_rolling_std  rolling_stats_rolling_skew  rolling_stats_rolling_kurtosis        rsi         sma  volatility  volume_features_volume_sma  volume_features_volume_ratio  volume_features_obv         wma       date symbol
+0 2021-01-04 14:32:00+00:00  133.345001  133.360001  132.990005  133.110001  526067.0      133.110001  0.265088             133.343521              132.859863             132.376190  132.897461  132.970352    -0.001689   0.089072     0.053472        0.035601                0                        0.36999                          -0.2350             0.00999 -0.001688                    0.000118                   0.001796                    0.013251                        2.295980  56.993736  132.859863    0.001796                 749268.6250                      0.702107            5232905.0  132.922897 2021-01-04   AAPL
+1 2021-01-04 14:33:00+00:00  133.110001  133.149994  132.710007  132.746201  555639.0      132.746201  0.277581             133.343475              132.859177             132.374863  132.883057  132.991318    -0.002737   0.065613     0.055900        0.009713                0                        0.43998                          -0.3638             0.00000 -0.002733                   -0.000003                   0.001905                    0.027829                        1.410856  47.612755  132.859177    0.001905                 770380.6875                      0.721253            4677266.0  132.912079 2021-01-04   AAPL
+2 2021-01-04 14:34:00+00:00  132.733002  132.830002  132.389999  132.809998  744817.0      132.809998  0.289182             133.344193              132.863678             132.383148  132.876099  132.988495     0.000481   0.051576     0.055035       -0.003459                1                        0.44000                           0.0770            -0.01320  0.000481                    0.000036                   0.001907                   -0.039418                        1.395155  49.192162  132.863678    0.001907                 800038.3750                      0.930977            5422083.0  132.907394 2021-01-04   AAPL
+
+tail:
+                      timestamp        open        high         low       close     volume  adjusted_close       atr  bollinger_bands_upper  bollinger_bands_middle  bollinger_bands_lower         ema         hma  log_returns  macd_macd  macd_signal  macd_histogram  price_direction  price_features_high_low_range  price_features_close_open_range  price_features_gap   returns  rolling_stats_rolling_mean  rolling_stats_rolling_std  rolling_stats_rolling_skew  rolling_stats_rolling_kurtosis        rsi         sma  volatility  volume_features_volume_sma  volume_features_volume_ratio  volume_features_obv         wma       date symbol
+1164 2021-01-06 20:57:00+00:00  126.481598  126.790001  126.470001  126.764999  1068114.0      126.764999  0.244987             127.532631              126.984543             126.436447  126.945068  126.594330     0.002172  -0.194410    -0.165998       -0.028411                1                           0.32                           0.2834             -0.0084  0.002174                   -0.000137                   0.001337                   -0.099414                       -0.784351  42.683769  126.984543    0.001337                 648827.8750                      1.646221          -15974076.0  126.884460 2021-01-06   AAPL
+1165 2021-01-06 20:58:00+00:00  126.760002  126.779999  126.500000  126.610001  1084050.0      126.610001  0.247488             127.538002              126.965042             126.392075  126.913162  126.551987    -0.001223  -0.197151    -0.172229       -0.024922                0                           0.28                          -0.1500             -0.0050 -0.001223                   -0.000153                   0.001349                   -0.077322                       -0.859624  39.327415  126.965042    0.001349                 666650.8125                      1.626114          -17058126.0  126.848793 2021-01-06   AAPL
+1166 2021-01-06 20:59:00+00:00  126.610001  126.800003  126.449997  126.589996  2457995.0      126.589996  0.254810             127.546196              126.949539             126.352882  126.882385  126.520699    -0.000158  -0.198647    -0.177513       -0.021135                0                           0.35                          -0.0200              0.0000 -0.000158                   -0.000121                   0.001340                   -0.150837                       -0.783577  38.902344  126.949539    0.001340                 760223.3750                      3.233253          -19516120.0  126.813072 2021-01-06   AAPL
+
+minute-delta value_counts (top):
+timestamp
+1       1163
+1051       2
+2          1
+open     present=True
+high     present=True
+low      present=True
+close    present=True
+volume   present=True
+
+close describe:
+ count    1167.000000
+mean      129.724487
+std         1.221955
+min       126.489998
+25%       128.925003
+50%       130.035004
+75%       130.642357
+max       133.110001

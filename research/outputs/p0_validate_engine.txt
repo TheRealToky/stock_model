@@ -1,0 +1,40 @@
+2026-06-16 21:02:28.416 | DEBUG    | financials.features.registry:_register_builtins:151 - Registered 15 built-in features
+2026-06-16 21:02:29.088 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=AAPL/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:02:30.137 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 46770 rows from /app/data/feature_store
+AAPL 2021-01-04..2021-06-30: 46770 bars, 2021-01-04 14:32:00+00:00 .. 2021-06-30 19:59:00+00:00
+
+==============================================================================
+ENGINE vs RESLIB  (terminal equity, #trades, equity-curve agreement)
+==============================================================================
+
+ema_crossover:
+  engine  final=8,171.13  trades=804
+  reslib  final=8,109.61  entries=804
+  terminal rel.diff=7.53e-03  path corr=1.000000  max rel.diff=7.53e-03
+
+mean_reversion:
+  engine  final=7,084.08  trades=959
+  reslib  final=7,022.44  entries=960
+  terminal rel.diff=8.70e-03  path corr=1.000000  max rel.diff=8.70e-03
+
+momentum:
+  engine  final=13,064.38  trades=658
+  reslib  final=13,005.26  entries=658
+  terminal rel.diff=4.52e-03  path corr=1.000000  max rel.diff=4.52e-03
+
+==============================================================================
+METRIC ANNUALIZATION CHECK (mean_reversion equity curve)
+==============================================================================
+  engine.metrics sharpe (periods=252 default) = -5.6842
+  reslib  sharpe @252                         = -5.6842
+  reslib  sharpe @98280 (CORRECT for 1-min)   = -29.6500
+  ratio 252/98280 sharpe = 0.192 (expect sqrt(98280/252)=19.748)
+
+==============================================================================
+SPEED BENCHMARK (full-history AAPL: engine loop vs vectorized)
+==============================================================================
+2026-06-16 21:02:37.745 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=AAPL/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:02:48.697 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 503363 rows from /app/data/feature_store
+  full history bars: 503,363
+  engine.run      : 1.808s
+  reslib.simulate : 0.024s   (speedup 74.4x)

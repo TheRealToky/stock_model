@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from financials.backtesting.constants import resolve_periods
 from financials.backtesting.metrics import compute_all_metrics
 from financials.config.settings import settings
 
@@ -32,6 +33,7 @@ class VectorizedBacktest:
         prices: pd.Series | np.ndarray,
         initial_capital: float | None = None,
         commission: float | None = None,
+        interval: str | None = None,
     ) -> dict[str, Any]:
         """Run a vectorized backtest.
 
@@ -43,12 +45,22 @@ class VectorizedBacktest:
             prices: Array of close prices aligned with *signals*.
             initial_capital: Starting cash (defaults to settings).
             commission: Proportional commission per leg (defaults to settings).
+            interval: Bar interval (e.g. ``"1min"``, ``"1d"``) driving
+                annualisation.  Inferred from *prices* when it carries a
+                ``DatetimeIndex``.
 
         Returns:
             Dictionary with keys ``equity_curve``, ``trades``, ``metrics``.
+
+        Raises:
+            ValueError: If the interval can be neither given nor inferred.
         """
         initial_capital = initial_capital or settings.backtest.initial_capital
         commission = commission or settings.backtest.commission
+        ann = resolve_periods(
+            interval=interval,
+            index=prices.index if isinstance(prices, pd.Series) else None,
+        )
 
         signals = np.asarray(signals, dtype=np.int64)
         prices = np.asarray(prices, dtype=np.float64)
@@ -93,10 +105,14 @@ class VectorizedBacktest:
 
             equity[i] = cash + shares * prices[i]
 
+        benchmark_returns = np.diff(prices) / np.where(prices[:-1] == 0.0, 1.0, prices[:-1])
+
         metrics = compute_all_metrics(
             equity_curve=equity,
             trades=trades,
             risk_free_rate=settings.backtest.risk_free_rate,
+            periods=ann,
+            benchmark_returns=benchmark_returns,
         )
 
         logger.info(
@@ -118,6 +134,7 @@ class VectorizedBacktest:
         prices: pd.Series,
         initial_capital: float | None = None,
         fees: float | None = None,
+        interval: str | None = None,
     ) -> dict[str, Any]:
         """Run a backtest using the vectorbt library.
 
@@ -128,6 +145,8 @@ class VectorizedBacktest:
             prices: Pandas Series of close prices (same index as signals).
             initial_capital: Starting cash.
             fees: Commission per trade as a fraction.
+            interval: Bar interval driving annualisation.  Inferred from
+                *prices*' ``DatetimeIndex`` when omitted.
 
         Returns:
             Dictionary with ``equity_curve``, ``trades``, ``metrics``,
@@ -144,6 +163,10 @@ class VectorizedBacktest:
 
         initial_capital = initial_capital or settings.backtest.initial_capital
         fees = fees or settings.backtest.commission
+        ann = resolve_periods(
+            interval=interval,
+            index=prices.index if isinstance(prices, pd.Series) else None,
+        )
 
         # Build boolean entry / exit arrays.
         entries = signals == 1
@@ -159,10 +182,17 @@ class VectorizedBacktest:
         )
 
         equity_curve = portfolio.value().values
+        prices_arr = np.asarray(prices, dtype=np.float64)
+        benchmark_returns = np.diff(prices_arr) / np.where(
+            prices_arr[:-1] == 0.0, 1.0, prices_arr[:-1]
+        )
+
         metrics = compute_all_metrics(
             equity_curve=equity_curve,
             trades=[],  # vectorbt manages its own trade log
             risk_free_rate=settings.backtest.risk_free_rate,
+            periods=ann,
+            benchmark_returns=benchmark_returns,
         )
 
         # Enrich with vectorbt's own metrics.

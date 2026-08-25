@@ -1,0 +1,61 @@
+2026-06-17 06:59:47.170 | DEBUG    | financials.features.registry:_register_builtins:151 - Registered 15 built-in features
+2026-06-17 07:00:03.874 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=AAPL/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-17 07:00:43.624 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 503363 rows from /app/data/feature_store
+2026-06-17 07:01:12.761 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=MSFT/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-17 07:01:59.747 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 502558 rows from /app/data/feature_store
+2026-06-17 07:02:27.740 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=NVDA/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-17 07:03:19.762 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 502251 rows from /app/data/feature_store
+2026-06-17 07:03:51.804 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=AMZN/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-17 07:04:42.749 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 497663 rows from /app/data/feature_store
+2026-06-17 07:05:11.616 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=META/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-17 07:05:59.302 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 501475 rows from /app/data/feature_store
+2026-06-17 07:06:30.865 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=TSLA/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-17 07:07:24.996 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 501104 rows from /app/data/feature_store
+2026-06-17 07:07:55.918 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=AMD/* ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-17 07:08:33.594 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 501723 rows from /app/data/feature_store
+2026-06-17 07:09:00.602 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=NFLX/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-17 07:09:38.062 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 498782 rows from /app/data/feature_store
+==================================================================================================================================
+IN-SAMPLE vs OUT-OF-SAMPLE  (vol-target overlay vs B&H, 2bp round-trip, Sharpe@98280)
+==================================================================================================================================
+ticker  IS_strat_sh  IS_bh_sh  IS_edge  OOS_strat_sh  OOS_bh_sh  OOS_edge  OOS_strat_DD  OOS_bh_DD  OOS_strat_ret  OOS_bh_ret  OOS_expo  OOS_dd_ok  OOS_beats
+  AAPL        0.388     0.397   -0.009         1.164      0.956     0.209         0.155      0.155          0.309       0.272     0.935       True       True
+  MSFT        0.542     0.501    0.040         0.172      0.283    -0.111         0.337      0.355          0.053       0.082     0.943       True      False
+  NVDA        1.288     1.143    0.145         1.883      1.911    -0.028         0.224      0.225          0.893       0.924     0.994       True      False
+  AMZN        0.225     0.162    0.063         1.036      1.118    -0.082         0.236      0.241          0.370       0.428     0.955       True      False
+  META        0.645     0.515    0.130         0.543      0.640    -0.097         0.344      0.346          0.180       0.224     0.983       True      False
+  TSLA        0.306     0.298    0.008         0.653      0.755    -0.103         0.323      0.323          0.258       0.321     0.980       True      False
+   AMD        0.225     0.199    0.027         2.272      2.177     0.094         0.275      0.294          2.474       2.464     0.931       True       True
+  NFLX        0.607     0.545    0.061        -0.633     -0.571    -0.062         0.436      0.440         -0.193      -0.185     0.971       True      False
+
+OOS summary:
+  maxDD <= B&H:            8/8
+  Sharpe edge > 0:         2/8
+  beats B&H (Sharpe+DD):   2/8
+  median OOS Sharpe edge:  -0.072
+  median OOS DD reduction: 0.003
+
+==================================================================================================================================
+PRIMARY AAPL: full metric detail (2bp round-trip)
+==================================================================================================================================
+           sharpe  sortino  maxDD  cagr  totret  annvol  alpha  beta  exposure  turn/day
+IS_strat    0.388    0.388  0.283 0.112   0.551   0.253  0.005 0.854     0.929     0.007
+IS_bh       0.397    0.398  0.349 0.120   0.596   0.290 -0.000 1.000     1.000     0.001
+OOS_strat   1.164    1.235  0.155 0.315   0.309   0.222  0.053 0.896     0.935     0.007
+OOS_bh      0.956    1.005  0.155 0.276   0.272   0.245 -0.000 1.000     1.000     0.000
+
+==================================================================================================================================
+COST SENSITIVITY (OOS test window): overlay turnover is tiny => near cost-invariant
+==================================================================================================================================
+            cost  rt_bps  AAPL_OOS_edge  univ_median_edge  univ_median_DDreduction  n_pos_edge
+    frictionless   0.000          0.210            -0.071                    0.003           2
+   ultra_low_1bp   2.000          0.210            -0.072                    0.003           2
+         low_2bp   4.000          0.209            -0.072                    0.003           2
+         mid_5bp  10.000          0.206            -0.073                    0.003           2
+       high_10bp  20.000          0.202            -0.076                    0.003           2
+lab_default_15bp  30.000          0.198            -0.078                    0.002           2
+
+saved research/outputs/p5_aapl_oos.png
+saved research/outputs/p5_crossticker_oos.png
+
+DONE p5

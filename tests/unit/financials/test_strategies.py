@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from strategies.ema_crossover import EMA_Crossover
+from strategies.ema_crossover import EMACrossover
 from strategies.mean_reversion import MeanReversion
 from strategies.momentum import Momentum
 
@@ -30,29 +30,29 @@ def _make_price_df(prices: list[float]) -> pd.DataFrame:
 
 class TestEMACrossover:
     def test_valid_init(self):
-        s = EMA_Crossover(fast_period=5, slow_period=20)
+        s = EMACrossover(fast_period=5, slow_period=20)
         assert s.fast_period == 5
         assert s.slow_period == 20
 
     def test_invalid_periods(self):
         with pytest.raises(ValueError):
-            EMA_Crossover(fast_period=20, slow_period=10)
+            EMACrossover(fast_period=20, slow_period=10)
 
     def test_signal_values(self):
         prices = list(range(100, 200)) + list(range(200, 100, -1))
         df = _make_price_df(prices)
-        s = EMA_Crossover(fast_period=5, slow_period=20)
+        s = EMACrossover(fast_period=5, slow_period=20)
         signals = s.generate_signals(df)
         assert set(signals.unique()).issubset({-1, 0, 1})
         assert len(signals) == len(df)
 
     def test_parameters(self):
-        s = EMA_Crossover(fast_period=10, slow_period=30)
+        s = EMACrossover(fast_period=10, slow_period=30)
         params = s.get_parameters()
         assert params == {"fast_period": 10, "slow_period": 30}
 
     def test_dependencies(self):
-        s = EMA_Crossover()
+        s = EMACrossover()
         assert "close" in s.get_dependencies()
 
 

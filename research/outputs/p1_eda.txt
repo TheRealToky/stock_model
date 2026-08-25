@@ -1,0 +1,96 @@
+2026-06-16 21:10:22.012 | DEBUG    | financials.features.registry:_register_builtins:151 - Registered 15 built-in features
+==============================================================================
+1. WITHIN-DAY 1-MIN RETURN AUTOCORRELATION (TRAIN+VAL)
+==============================================================================
+2026-06-16 21:10:26.007 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=AAPL/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:10:34.735 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 406535 rows from /app/data/feature_store
+2026-06-16 21:10:38.805 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=MSFT/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:10:47.257 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 405730 rows from /app/data/feature_store
+2026-06-16 21:10:53.116 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=NVDA/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:11:04.979 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 405423 rows from /app/data/feature_store
+2026-06-16 21:11:10.503 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=AMZN/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:11:21.701 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 400835 rows from /app/data/feature_store
+2026-06-16 21:11:27.138 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=META/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:11:40.031 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 404647 rows from /app/data/feature_store
+2026-06-16 21:11:45.618 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=TSLA/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:11:56.844 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 404276 rows from /app/data/feature_store
+2026-06-16 21:12:00.606 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=AMD/* ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:12:09.228 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 404895 rows from /app/data/feature_store
+2026-06-16 21:12:12.735 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=NFLX/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:12:21.097 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 402196 rows from /app/data/feature_store
+ticker   bars     lag1     lag2     lag3     lag5    lag10  mean_abs_ret_bps
+  AAPL 406535  0.00020 -0.00032  0.00109 -0.00258  0.00455           4.79021
+  MSFT 405730 -0.00602 -0.00734 -0.00179 -0.00014  0.00639           4.51351
+  NVDA 405423  0.00327 -0.00766 -0.00150 -0.00401  0.00546           8.95880
+  AMZN 400835 -0.01118 -0.00187 -0.00164 -0.00111  0.00314           5.91593
+  META 404647 -0.01886 -0.00365 -0.00448  0.00105  0.00141           6.59281
+  TSLA 404276  0.00690 -0.00646 -0.00228 -0.00335 -0.00005          10.11253
+   AMD 404895  0.00842 -0.01003 -0.00307  0.00499  0.00614           8.72302
+  NFLX 402196 -0.02643 -0.00476 -0.00541  0.00469  0.00181           6.86544
+
+Mean lag-1 autocorr across universe: -0.00546
+
+==============================================================================
+1b. OVERNIGHT vs INTRADAY DECOMPOSITION (daily, TRAIN+VAL, gross)
+==============================================================================
+ticker  intraday_ann_ret%  overnight_ann_ret%  full_ann_ret%  intraday_sharpe  overnight_sharpe  full_sharpe
+  AAPL             24.092              -7.997         15.750            0.842            -0.673        0.410
+  MSFT             11.514               5.996         17.343            0.349             0.122        0.506
+  NVDA             23.585              41.330         64.792            0.452             1.091        1.104
+  AMZN             -0.854              11.096          9.860           -0.178             0.286        0.163
+  META             20.752               6.612         27.076            0.543             0.077        0.510
+  TSLA              0.605              22.163         22.843           -0.068             0.493        0.301
+   AMD              0.771              13.997         14.684           -0.075             0.344        0.205
+  NFLX              7.430              20.652         28.879            0.108             0.546        0.548
+
+Means across universe:
+intraday_ann_ret%    10.987
+overnight_ann_ret%   14.231
+full_ann_ret%        25.153
+intraday_sharpe       0.247
+overnight_sharpe      0.286
+full_sharpe           0.469
+
+==============================================================================
+2. VARIANCE RATIOS (AAPL, within-day returns)
+==============================================================================
+2026-06-16 21:12:24.676 | DEBUG    | financials.etl_pipeline.load.reader:load_pandas:176 - DuckDB query: SELECT "timestamp", "open", "high", "low", "close", "volume" FROM read_parquet(['/app/data/feature_store/date=2021-01-04/symbol=AAPL/ ... artitioning=1) WHERE date >= ? AND date <= ? AND symbol IN (?)
+2026-06-16 21:12:32.182 | INFO     | financials.etl_pipeline.load.reader:load_pandas:184 - Loaded 406535 rows from /app/data/feature_store
+  VR(  2) = 1.0002   (<1 mean-revert, >1 trend)
+  VR(  5) = 1.0005   (<1 mean-revert, >1 trend)
+  VR( 10) = 0.9923   (<1 mean-revert, >1 trend)
+  VR( 30) = 0.9867   (<1 mean-revert, >1 trend)
+  VR( 60) = 0.9878   (<1 mean-revert, >1 trend)
+
+==============================================================================
+3. INTRADAY SEASONALITY (AAPL): by minutes-since-open
+==============================================================================
+First 5 minutes of session:
+ m  mean_ret_bps  std_ret_bps   mean_vol
+ 0          2.73        72.45 2880156.56
+ 1         -0.12        16.19  423853.17
+ 2         -0.79        14.25  389800.20
+ 3         -0.11        13.37  362156.96
+ 4         -0.91        12.13  341215.42
+Last 5 minutes of session:
+  m  mean_ret_bps  std_ret_bps   mean_vol
+385          0.01         7.87  430873.48
+386          0.14         5.05  358246.78
+387          0.73         4.47  399307.95
+388          0.66         4.89  508228.95
+389          0.21         7.86 1171874.93
+Midday (minutes 190-194):
+  m  mean_ret_bps  std_ret_bps  mean_vol
+190         -0.04         3.91 101322.76
+191         -0.16         3.76  96348.83
+192          0.09         3.67  95394.29
+193          0.09         3.57  98427.07
+194          0.04         3.45  94670.36
+
+==============================================================================
+4. VOLATILITY CLUSTERING (AAPL): ACF of |returns| vs returns
+==============================================================================
+  ret  ACF lag1=0.0002 lag5=-0.0026 lag30=-0.0047
+  |ret| ACF lag1=0.3188 lag5=0.2823 lag30=0.2142 lag60=0.1668
+
+saved research/outputs/p1_eda.png

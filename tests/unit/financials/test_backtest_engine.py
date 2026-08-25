@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from financials.backtesting.engine import BacktestEngine, BacktestResult
-from strategies.ema_crossover import EMA_Crossover
+from strategies.ema_crossover import EMACrossover
 from strategies.momentum import Momentum
 
 
@@ -31,7 +31,7 @@ class TestBacktestEngine:
     def test_run_returns_result(self):
         df = _make_trending_df()
         engine = BacktestEngine(initial_capital=100_000, commission=0.001, slippage=0.0)
-        strategy = EMA_Crossover(fast_period=5, slow_period=20)
+        strategy = EMACrossover(fast_period=5, slow_period=20)
         result = engine.run(strategy, df, ticker="TEST")
         assert isinstance(result, BacktestResult)
         assert result.strategy_name == "ema_crossover"
@@ -41,7 +41,7 @@ class TestBacktestEngine:
     def test_metrics_present(self):
         df = _make_trending_df()
         engine = BacktestEngine(initial_capital=100_000)
-        strategy = EMA_Crossover(fast_period=5, slow_period=20)
+        strategy = EMACrossover(fast_period=5, slow_period=20)
         result = engine.run(strategy, df)
         assert "sharpe_ratio" in result.metrics
         assert "max_drawdown" in result.metrics
@@ -58,21 +58,21 @@ class TestBacktestEngine:
             index=dates,
         )
         engine = BacktestEngine(initial_capital=50_000, commission=0, slippage=0)
-        strategy = EMA_Crossover(fast_period=3, slow_period=5)
+        strategy = EMACrossover(fast_period=3, slow_period=5)
         result = engine.run(strategy, df)
         # No trades should occur with constant prices
         assert result.equity_curve[-1] == pytest.approx(50_000, abs=1)
 
     def test_empty_df_raises(self):
         engine = BacktestEngine()
-        strategy = EMA_Crossover()
+        strategy = EMACrossover()
         with pytest.raises(ValueError, match="empty"):
             engine.run(strategy, pd.DataFrame())
 
     def test_missing_close_raises(self):
         df = pd.DataFrame({"open": [100], "volume": [1e6]})
         engine = BacktestEngine()
-        strategy = EMA_Crossover()
+        strategy = EMACrossover()
         with pytest.raises(ValueError, match="close"):
             engine.run(strategy, df)
 
@@ -80,7 +80,7 @@ class TestBacktestEngine:
         df = _make_trending_df()
         no_fee = BacktestEngine(initial_capital=100_000, commission=0, slippage=0)
         with_fee = BacktestEngine(initial_capital=100_000, commission=0.01, slippage=0)
-        strategy = EMA_Crossover(fast_period=5, slow_period=20)
+        strategy = EMACrossover(fast_period=5, slow_period=20)
 
         r1 = no_fee.run(strategy, df)
         r2 = with_fee.run(strategy, df)
