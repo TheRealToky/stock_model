@@ -2,6 +2,6 @@
 
 from alt_data.ingestion.flight_data import FlightData
 from alt_data.ingestion.fetcher import DataFetcher
-from alt_data.ingestion.opensky_client import OpenSkyClient
+from alt_data.ingestion.opensky_client import OpenSkyClient, OpenSkyQuotaError
 
-__all__ = ["FlightData", "DataFetcher", "OpenSkyClient"]
+__all__ = ["FlightData", "DataFetcher", "OpenSkyClient", "OpenSkyQuotaError"]

@@ -14,7 +14,7 @@ from typing import Any
 import pandas as pd
 
 from alt_data.ingestion.flight_data import FlightData
-from alt_data.ingestion.opensky_client import OpenSkyClient
+from alt_data.ingestion.opensky_client import OpenSkyClient, OpenSkyQuotaError
 from alt_data.utils.logging import get_logger
 from alt_data.utils.time_utils import (
     daily_utc_intervals,
@@ -85,6 +85,10 @@ class DataFetcher:
                 arrivals_payload = self.client.get_arrivals_by_airport(
                     airport_icao, begin, end
                 )
+            except OpenSkyQuotaError:
+                # Quota is gone for the day -- every remaining window would
+                # fail the same way, so abort instead of retrying them all.
+                raise
             except Exception as exc:  # noqa: BLE001
                 logger.error(
                     "arrivals failed for {} on {}: {}",
@@ -98,6 +102,8 @@ class DataFetcher:
                 departures_payload = self.client.get_departures_by_airport(
                     airport_icao, begin, end
                 )
+            except OpenSkyQuotaError:
+                raise
             except Exception as exc:  # noqa: BLE001
                 logger.error(
                     "departures failed for {} on {}: {}",

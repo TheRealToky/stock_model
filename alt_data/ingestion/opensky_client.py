@@ -22,6 +22,13 @@ from alt_data.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
+class OpenSkyQuotaError(RuntimeError):
+    """Raised when OpenSky reports the API quota is exhausted (429 with a
+    Retry-After beyond our waiting cap).  Retrying other windows in the
+    same run is pointless -- callers should abort and resume once the
+    advertised wait has passed."""
+
+
 class OpenSkyClient:
     """Rate-limited, retrying HTTP client for OpenSky.
 
@@ -47,12 +54,14 @@ class OpenSkyClient:
         max_requests_per_minute: int | None = None,
         timeout: int | None = None,
         max_retries: int | None = None,
+        max_retry_after: int | None = None,
     ) -> None:
         cfg = alt_settings.opensky
         self.base_url = (base_url or cfg.base_url).rstrip("/")
         self.max_rpm = max_requests_per_minute or cfg.max_requests_per_minute
         self.timeout = timeout or cfg.request_timeout_seconds
         self.max_retries = max_retries or alt_settings.pipeline.max_retries
+        self.max_retry_after = max_retry_after or cfg.max_retry_after_seconds
 
         if token_manager is not None:
             self._token_manager: TokenManager | None = token_manager
@@ -153,15 +162,38 @@ class OpenSkyClient:
 
             # 429 = rate limit hit; 5xx = transient -> retry with backoff.
             if response.status_code in (429, 500, 502, 503, 504):
+                last_exc = RuntimeError(f"HTTP {response.status_code}")
+                retry_after = self._retry_after_seconds(response)
+                if (
+                    response.status_code == 429
+                    and retry_after is not None
+                    and retry_after > self.max_retry_after
+                ):
+                    raise OpenSkyQuotaError(
+                        f"OpenSky asks to retry {path} after {retry_after:.0f}s "
+                        f"(~{retry_after / 3600:.1f}h; cap: {self.max_retry_after}s) "
+                        "-- API quota is exhausted. Resume once that wait has passed"
+                        + (
+                            ""
+                            if self._token_manager is not None
+                            else " or set OPENSKY_CLIENT_ID / "
+                            "OPENSKY_CLIENT_SECRET for a much higher quota"
+                        )
+                    )
                 logger.warning(
-                    "OpenSky {} on attempt {}/{} for {} {}",
+                    "OpenSky {} on attempt {}/{} for {} {} (retry-after: {})",
                     response.status_code,
                     attempt,
                     self.max_retries,
                     path,
                     params,
+                    retry_after if retry_after is not None else "n/a",
                 )
-                self._sleep_backoff(attempt)
+                if retry_after is not None:
+                    # Obey the server, plus a small margin for clock skew.
+                    time.sleep(retry_after + 1)
+                else:
+                    self._sleep_backoff(attempt)
                 continue
 
             if response.status_code >= 400:
@@ -185,6 +217,24 @@ class OpenSkyClient:
             f"OpenSky {path} failed after {self.max_retries} attempts: "
             f"{last_exc!r}"
         )
+
+    @staticmethod
+    def _retry_after_seconds(response: requests.Response) -> float | None:
+        """Extract the server-advertised wait from a 429/5xx response.
+
+        OpenSky uses ``X-Rate-Limit-Retry-After-Seconds``; the standard
+        ``Retry-After`` is checked as a fallback.  Returns ``None`` when
+        neither header is present or parseable.
+        """
+        for header in ("X-Rate-Limit-Retry-After-Seconds", "Retry-After"):
+            raw = response.headers.get(header)
+            if raw is None:
+                continue
+            try:
+                return max(0.0, float(raw))
+            except ValueError:
+                continue
+        return None
 
     def _auth_headers(self) -> dict[str, str]:
         """Return per-request auth headers (empty when anonymous)."""

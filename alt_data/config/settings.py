@@ -13,8 +13,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+# Populate os.environ from the project .env when running outside Docker
+# (compose injects these itself; load_dotenv never overrides existing vars).
+load_dotenv(_PROJECT_ROOT / ".env")
 
 
 @dataclass
@@ -88,10 +93,14 @@ class OpenSkyConfig:
     token_refresh_margin_seconds: int = int(
         os.getenv("OPENSKY_TOKEN_REFRESH_MARGIN", "30")
     )
-    # Anonymous ~100 req/day; authenticated ~4000 req/day. Be conservative
+    # Anonymous ~400 credits/day; authenticated 4000-8000/day. Be conservative
     # per-minute so we never spike and trigger a global block.
     max_requests_per_minute: int = int(os.getenv("OPENSKY_RPM", "30"))
     request_timeout_seconds: int = int(os.getenv("OPENSKY_TIMEOUT", "30"))
+    # On 429 the server advertises how long to wait. We obey it up to this
+    # many seconds; anything longer means the daily quota is exhausted and
+    # retrying is pointless -> fail fast instead.
+    max_retry_after_seconds: int = int(os.getenv("OPENSKY_MAX_RETRY_AFTER", "300"))
 
 
 @dataclass
